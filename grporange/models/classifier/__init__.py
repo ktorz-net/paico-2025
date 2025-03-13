@@ -1,0 +1,1 @@
+from .vip_movement_predictor import VipMovementPredictor

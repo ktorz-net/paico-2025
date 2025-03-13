@@ -1,0 +1,15 @@
+{
+    "matrix": [
+        [ 0,  0,  0, -1,  0,  0,  0],
+        [ 0,  0,  0, -1,  0, -1,  0],
+        [ 0, -1,  0,  0,  0, -1,  0],
+        [ 0, -1,  0, -1,  0, -1,  0],
+        [ 0,  0,  0,  0,  0,  0,  0]
+    ],
+    "tic": 25,
+    "numberOfMissions": 4,
+    "numberOfPlayers": 1,
+    "numberOfRobots": 3,
+    "numberOfPVips": 0,
+    "vipZones": [1, 6, 14, 21, 27]
+}
