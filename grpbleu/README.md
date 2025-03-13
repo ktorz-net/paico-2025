@@ -4,8 +4,8 @@
 
 https://github.com/users/AlexisEgea/projects/3  
 
-## Group 
+## Group
 
-Alexis Egea  
-Elouan Fronville  
-Zakaria Si Salah  
+Alexis Egea
+Elouan Fronville
+Zakaria Si Salah
