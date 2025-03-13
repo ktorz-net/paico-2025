@@ -1,8 +1,8 @@
 import random
+import time
 import copy
 import torch
 import os
-
 from collections import deque
 from hacka.games.moveit import GameEngine
 
@@ -50,43 +50,50 @@ class Node:
 
 
 class CompleteBot():
+    def __init__(self, debug=False, depth=5):
+        self._debug = debug
+        self._depth = depth
     # Player interface :
     def wakeUp(self, playerId, numberOfPlayers, gameConfiguration):
         self._history_length = 5
         self._id = playerId
         self._model = GameEngine()
         self._model.fromPod(gameConfiguration)  # Load the model from gameConfiguration
-        # self._model.render()
+
+        if self._debug:
+            self._model.render()
+        
         self._nb_robots = self._model.numberOfMobiles(self._id)
         self._nb_players = numberOfPlayers
-        self._debug = True
-        self._depth = 5
-        self._total_tic = self._model._tic
-        #self.log(f'number of robot for player {self._id}: {self._nb_robots}')
         self._is_vip_activated = self._model.numberOfMobiles(0) > 0
 
         s = self._model.map().size()
         self._distances = [[i for i in range(s + 1)]]
-        # # print(self._distances)
+        self.log(self._distances)
 
         for i in range(1, s+1):
             dist = self.computeDistances(i)
-            # # print(dist)
+            self.log(dist)
             self._distances.append(dist)
         
         self.init_ennemies_state()
-        #self.identify_tunnels()
-
-        self._previous_vip_position = -1
-        self._move_history = deque([-1] * self._history_length, maxlen=self._history_length)
-
 
         if self._is_vip_activated:
+            self._previous_vip_position = -1
+            self._move_history = deque([-1] * self._history_length, maxlen=self._history_length)
+
             self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self._vip_predictor = VipMovementPredictor()
 
+            if s < 15:
+                map_size = "small"
+            elif s < 40:
+                map_size = "medium"
+            else:
+                map_size = "large"
+
             pthFile= os.path.dirname(os.path.realpath(__file__))
-            pthFile+= "/classifier/weights/vip_movement_predictor.pth"
+            pthFile+= f"/classifier/weights/vip_movement_{map_size}_predictor.pth"
 
             self._vip_predictor.load_state_dict(torch.load(pthFile, map_location=self._device))
             self._vip_predictor.to(self._device) 
@@ -97,19 +104,18 @@ class CompleteBot():
 
     def perceive(self, gameState ):
         self._model.setOnState(gameState)
-        # self._model.render()
+        if self._debug:
+            self._model.render()
+            time.sleep(0.3)
         self.init_ennemies_state(update=True)
-        # time.sleep(0.3)
 
     def decide(self):
         actions = self.get_actions()
-        # print(f"{self._model._tic} semi_complete_bot player-{self._id}({self._model.score(self._id)}): {actions}")
-        #input()
+        self.log(f"{self._model._tic} semi_complete_bot player-{self._id}({self._model.score(self._id)}): {actions}")
         return actions
             
     def sleep(self, result):
-        pass
-        #self.log( f"end on : {result}" )
+        self.log( f"end on : {result}" )
    
     # Mon implementation
     def init_ennemies_state(self, update=False):
@@ -134,20 +140,21 @@ class CompleteBot():
                 }
         
         self._dict_state = ennemies_state
+
         if update:
             if self._is_vip_activated:
                 self.refresh_vip_positions()
                 vip_next_moves = self.predict_next_vip_movement(self._depth-1)
-                # print(vip_next_moves)
+                self.log(vip_next_moves)
                 for i, (_, dest) in enumerate(vip_next_moves):
                     self.add_count_tile(0, 1, dest, i+1)
             for player_id in range(1, self._nb_players + 1):
-                ## print(f"player_{player_id}:")
+                #self.log(f"player_{player_id}:")
                 if player_id == self._id:
                     continue
 
                 for robot_id in range(1, self._nb_robots + 1):
-                    # # print(f"\t-robot_{robot_id}:")
+                    # self.log(f"\t-robot_{robot_id}:")
                     robot_position = self._model.mobilePosition(player_id, robot_id)
                     robot_mission = self._model.mobileMission(player_id, robot_id)
                     if robot_mission == 0:
@@ -320,13 +327,7 @@ class CompleteBot():
 
     def log(self, message):
         '''
-        ## print the message if debug is activated
-
-        Parameters:
-        message (str): The message to ## print
-
-        Returns:
-        None: Nothing is returned
+        #print the message if debug is activated
         '''
         if self._debug:
             print(message)
@@ -375,7 +376,6 @@ class CompleteBot():
             actions.append("move " + " ".join(move_actions))
         
         actions = " ".join(actions)
-        #self.log(f"{self._model._tic} - {actions}")
         return actions
     
     def get_missions_distances(self, player_id=1, all_mission_ids=None):
@@ -384,7 +384,6 @@ class CompleteBot():
         if all_mission_ids is None:
             all_mission_ids = self._model.missionsList()
         
-        #self.log(all_mission_ids)
         for robot_id in range(1, self._nb_robots + 1):
             result.append([])
             robot_position = self._model.mobilePosition(player_id, robot_id)
@@ -399,9 +398,6 @@ class CompleteBot():
                     mission_distance = self._distances[robot_position][mission.start]
                 
                 result[robot_id][mission_id] = mission_distance
-            
-        #self.log(f"Distances between robot and missions calculated for player_{player_id}:")
-        #self.log(result)
 
         return result
     
@@ -428,7 +424,6 @@ class CompleteBot():
             robot_to_missions_distances = self.get_all_players_missions_distances(all_mission_ids=all_mission_ids)
         
         prev_reservation = []
-        # reservation = [-1 for _ in range(0, self._nb_robots+1)]
         reservation = [[]]
         for _ in range(1, self._nb_players + 1):
             reservation.append([-1 for _ in range(0, self._nb_robots+1)])
@@ -439,7 +434,6 @@ class CompleteBot():
         # While the solution not converge
         while prev_reservation != reservation:
             prev_reservation = copy.deepcopy(reservation)
-            #self.log(f"{counter} - reservations: {reservation}")
             counter += 1
             if counter > max_iter:
                 break
@@ -456,8 +450,8 @@ class CompleteBot():
                 
                     # On récupère la mission la plus proche et libre
                     distances = robot_to_missions_distances[player_id][robot_id]
-                    # print(f"\n(player_{player_id}) reserved missions: {reservation[player_id]}")
-                    # print(f"(player_{player_id}, robot_{robot_id}) distances to missions: {distances}")
+                    self.log(f"\n(player_{player_id}) reserved missions: {reservation[player_id]}")
+                    self.log(f"(player_{player_id}, robot_{robot_id}) distances to missions: {distances}")
                     min_distance = max(distances) + 1
                     selected_mission_id = None
                     for i, distance in enumerate(distances):
@@ -472,7 +466,7 @@ class CompleteBot():
                             min_distance = distance
                             selected_mission_id = i
                     
-                    # print(f"(player_{player_id}, robot_{robot_id}) mission la plus proche: {selected_mission_id} with distance of {min_distance}")
+                    self.log(f"(player_{player_id}, robot_{robot_id}) mission la plus proche: {selected_mission_id} with distance of {min_distance}")
                     
                     # If a mission has been selected
                     if selected_mission_id != None:
@@ -492,7 +486,7 @@ class CompleteBot():
 
                                 other_robot_distances = robot_to_missions_distances[other_player_id][other_robot_id]
                                 if other_robot_distances[selected_mission_id] < min_distance:
-                                    # print(f"(player_{player_id}, robot_{robot_id}) is not the closest of {selected_mission_id} it is (player_{other_player_id}, robot_{other_robot_id})")
+                                    self.log(f"(player_{player_id}, robot_{robot_id}) is not the closest of {selected_mission_id} it is (player_{other_player_id}, robot_{other_robot_id})")
                                     is_closest = False
                                     break
                             
@@ -502,8 +496,7 @@ class CompleteBot():
                         if is_closest:
                             reservation[player_id][robot_id] = selected_mission_id
 
-        
-        #self.log(f"reservations:\n{reservation}")
+        self._reservations = reservation[self._id]
         return reservation[self._id]
     
     def get_closest_mission(self, i_from):
@@ -525,15 +518,6 @@ class CompleteBot():
             i+= 1
         
         return result
-
-    def missionOn(self, iTile):
-        i= 1
-        l= []
-        for m in self._model.missions() :
-            if m.start == iTile :
-                l.append(i)
-            i+= 1
-        return l
     
     def computeDistances(self, iTile):
         # Initialize distances to 0:
@@ -560,103 +544,85 @@ class CompleteBot():
         # Correct 0 distance:
         dists[iTile]= 0
         return dists
-
-    def get_next_steps_override(self, reservations=None):
-        if reservations is None:
-            reservations = self.assign_missions()
-        
-        all_next_steps = [[]]
-
-        for player_id in range(1, self._nb_players + 1):
-            player_next_steps = self.get_next_steps(player_id=player_id, reservations=reservations)
-            all_next_steps.append(player_next_steps)
-        
-        next_step = all_next_steps[self._id]
-
-        for robot_id in range(1, self._nb_robots + 1):
-            current_next_moves = next_step[robot_id]
-            
-            # Check if another robot is already going on the tile == avoid a collision between two robots
-            for other_player_id in range(1, self._nb_players + 1):
-                if other_player_id == self._id:
-                    continue
-
-                for other_robot_id in range(1, self._nb_robots + 1):
-                    moves_to_remove = []
-
-                    # We loop through the other robot moves to check if there is a collision
-                    for i, (_, _, current_next_tile) in enumerate(current_next_moves):
-                        for (_, _, other_robot_tile) in all_next_steps[other_player_id][other_robot_id]:
-                            if current_next_tile == other_robot_tile:
-                                if i not in moves_to_remove:
-                                    moves_to_remove.insert(0, i)
-                    
-                    for i in moves_to_remove:
-                        #self.log(f"remove {i} in {current_next_moves}")
-                        del current_next_moves[i]
-            
-            # if no move is left, then it should stay at the same position
-            if len(current_next_moves) <= 0:
-                current_next_moves.append(("move", 0, self._model.mobilePosition(self._id, robot_id)))
-        
-        return next_step
-
-    def is_someone_on(self, tile_i):
-        if self._is_vip_activated:
-            vip_position = self._model.mobilePosition(0, 1)
-            if vip_position == tile_i:
-                return True, True
-        
-        for player_id in range(1, self._model.numberOfPlayers() + 1):
-            for robot_id in range(1, self._model.numberOfMobiles() + 1):
-                robot_position = self._model.mobilePosition(player_id, robot_id)
-                if robot_position == tile_i:
-                    return True, False
-        
-        return False, False
         
     def get_next_steps_better(self, player_id=1, reservations=None):
-        #self.log("get_next_steps_better")
         if reservations is None:
             reservations = self.assign_missions()
-
-        # print(f"reservations: {reservations}")
         
         next_moves=[[] for _ in range(self._nb_robots + 1)]
+        next_moves=self.get_optimal_moves(next_moves, reservations=reservations)
+        next_moves=self.apply_priority(next_moves)
+        next_moves=self.apply_vip_policies(next_moves)
+        next_moves=self.filter_by_any_presence(next_moves)
+        next_moves=self.apply_default_move(next_moves)
+
+        return next_moves
+    
+    def get_optimal_moves(self, next_moves, reservations):
+        self.log("get_optimal_moves")
         for robot_id in range(1, self._nb_robots + 1):
-            # print(f"robot-{robot_id}")
-            #self.log(f"{robot_id} robot:")
-            robot_position = self._model.mobilePosition(player_id, robot_id)
-            robot_mission_id = self._model.mobileMission(player_id, robot_id)
+            robot_position = self._model.mobilePosition(self._id, robot_id)
+            robot_mission_id = self._model.mobileMission(self._id, robot_id)
             if reservations[robot_id] < 0:
-                # print(f"\tNo reserved mission")
+                self.log(f"\trobot-{robot_id} No reserved mission")
                 current_next_moves = [('move', 0, robot_position)]
             elif robot_mission_id == 0 and reservations[robot_id] > 0:
                 robot_mission = self._model.mission(reservations[robot_id])
-                # print(f"\treserved mission {reservations[robot_id]} go to {robot_mission.start}")
+                self.log(f"\trobot-{robot_id} reserved mission {reservations[robot_id]} go to {robot_mission.start}")
                 if robot_position == robot_mission.start:
                     current_next_moves = [('mission', reservations[robot_id], robot_position)]
                 else:
                     head = self.get_all_paths(robot_position, robot_mission.start)
-                    # print(head)
-                    head, _ = self.detect_potential_collisions(player_id, robot_id, head, 1)
-                    # print(head)
+                    #self.log(head)
+                    head, _ = self.detect_potential_collisions(self._id, robot_id, head, 1)
+                    #self.log(head)
                     current_next_moves = self.get_next_step_from_node(head)
                     current_next_moves = [('move', *move) for move in current_next_moves]
             elif robot_mission_id > 0:
-                # print(f"\tactivated mission {robot_mission_id}")
+                self.log(f"\trobot-{robot_id} activated mission {robot_mission_id}")
                 robot_mission = self._model.mission(robot_mission_id)
                 if robot_position == robot_mission.final:
                     current_next_moves = [('mission', robot_mission_id, robot_position)]
                 else:
                     head = self.get_all_paths(robot_position, robot_mission.final)
-                    # print(head)
-                    head, _ = self.detect_potential_collisions(player_id, robot_id, head, 1)
-                    # print(head)
+                    #self.log(head)
+                    head, _ = self.detect_potential_collisions(self._id, robot_id, head, 1)
+                    #self.log(head)
                     current_next_moves = self.get_next_step_from_node(head)
                     current_next_moves = [('move', *move) for move in current_next_moves]
             
-            if self._is_vip_activated:
+            next_moves[robot_id] = current_next_moves
+        
+        return next_moves
+
+    def filter_by_any_presence(self, next_moves):
+        self.log("filter_by_any_presence")
+        for robot_id in range(1, self._nb_robots + 1):
+            to_remove = []
+            for i, (action_type, move, next_tile) in enumerate(next_moves[robot_id]):
+                if action_type != "move":
+                    continue
+                if move == 0:
+                    continue
+
+                pieces = self._model._map.tile(next_tile)._pieces
+                # Means someone is on the tile
+                if len(pieces) > 0:
+                    self.log(f"\t- robot-{robot_id}: remove ({action_type}, {move}, {next_tile}")
+                    if i not in to_remove:
+                        to_remove.append(i)
+            
+            to_remove.sort(reverse=True)
+            for i in to_remove:
+                next_moves[robot_id].pop(i)
+        
+        return next_moves
+
+    def apply_vip_policies(self, next_moves):
+        self.log("apply_vip_policies")
+        if self._is_vip_activated:
+            for robot_id in range(1, self._nb_robots + 1):
+                robot_position = self._model.mobilePosition(self._id, robot_id)
                 vip_position = self._model.mobilePosition(0, 1)
                 current_dist = self._distances[robot_position][vip_position]
                 if current_dist <= 3:
@@ -683,156 +649,116 @@ class CompleteBot():
 
                     if len(to_remove_dir) > 0:
                         to_remove_indexes = []
-                        for  i, (_, next_dir, _) in enumerate(current_next_moves):
+                        for  i, (_, next_dir, _) in enumerate(next_moves[robot_id]):
                             if next_dir in to_remove_dir:
                                 to_remove_indexes.append(i)
                         
                         to_remove_indexes.sort(reverse=True)
                         for i in to_remove_indexes:
-                            del current_next_moves[i]
+                            del next_moves[robot_id][i]
                 
                     for direction, neighbour in zip(directions, neighbours):
                         exist = False
-                        for _, next_dir, _ in current_next_moves:
+                        for _, next_dir, _ in next_moves[robot_id]:
                             if direction == next_dir:
                                 exist = True
                                 break
                         if not exist:
-                            # print("add: ", direction)
-                            current_next_moves.append(("move", direction, neighbour))
-
-            # print(f"\tafter vip: {current_next_moves}")
-            # for other_robot_id in range(1, self._nb_robots + 1):
-            #     if other_robot_id == robot_id:
-            #         continue
-            #     other_robot_position = self._model.mobilePosition(self._id, other_robot_id)
-
-            #     if self._distances[robot_position][other_robot_position] < 2:
-            
-            ## print(f"\tcurrent_next_moves: {current_next_moves}")
-            #self.log(f"\tcurrent_next_moves: {current_next_moves}")
-            # Check if another robot is already going on the tile == avoid a collision between two robots
+                            pieces = self._model._map.tile(neighbour)._pieces
+                            if len(pieces) == 0:
+                                next_moves[robot_id].append(("move", direction, neighbour))
+        return next_moves
+    
+    def apply_priority(self, next_moves):
+        self.log("apply_priority")
+        for robot_id in range(1, self._nb_robots + 1):
+            robot_position = self._model.mobilePosition(self._id, robot_id)
             for other_robot_id in range(1, self._nb_robots + 1):
-                # If the other robot is the same then it is not a collision
-                if other_robot_id == robot_id:
+                if robot_id == other_robot_id:
                     continue
                 
-                other_robot_moves_to_remove = []
-                moves_to_remove = []
-                other_robot_position = self._model.mobilePosition(player_id, other_robot_id)
-                # We loop through the other robot moves to check if there is a collision
-                for i, (_, _, current_next_tile) in enumerate(current_next_moves):
-                    # # print(f"\robot-{robot_id} current_next_tile: {current_next_tile}")
-                    # # print(f"\robot-{other_robot_id} position: {other_robot_position}")
-                    if current_next_tile == other_robot_position:
-                        if i not in moves_to_remove:
-                            moves_to_remove.insert(0, i)
-                            continue
-                    for j, (_, _, other_robot_tile) in enumerate(next_moves[other_robot_id]):
-                        if current_next_tile == other_robot_tile:
-                            if len(current_next_moves) > 1:
-                                if i not in moves_to_remove:
-                                    moves_to_remove.insert(0, i)
-                            elif len(next_moves[other_robot_id]) > 1:
-                                if j not in other_robot_moves_to_remove:
-                                    other_robot_moves_to_remove.insert(0, j)
-                            else:
-                                if i not in moves_to_remove:
-                                    moves_to_remove.insert(0, i)
-                
-                for i in moves_to_remove:
-                    #self.log(f"remove {i} in {current_next_moves}")
-                    del current_next_moves[i]
-                for i in other_robot_moves_to_remove:
-                    #self.log(f"remove {i} in {other_robot_moves_to_remove}")
-                    del next_moves[other_robot_id][i]
-            
-            moves_to_remove = []
-            for other_player_id in range(0, self._nb_players + 1):
-                if other_player_id == player_id:
+                other_robot_position = self._model.mobilePosition(self._id, other_robot_id)
+                distance = self._distances[robot_position][other_robot_position]
+                if distance > 2:
                     continue
+                prior_robot = self.get_prior_robot(robot_id, other_robot_id)
                 
-                other_robots_positions = self._model._map.mobilePositions(other_player_id)
-                for i, (_, _, current_next_tile) in enumerate(current_next_moves):
-                    if current_next_tile in other_robots_positions:
-                        if i not in moves_to_remove:
-                            moves_to_remove.append(i)
-                            continue
-            
-            moves_to_remove.sort(reverse=True)
-            for i in moves_to_remove:
-                #self.log(f"remove {i} in {current_next_moves}")
-                del current_next_moves[i]
-            
-            # print(f"\tafter verification: {current_next_moves}")
-            if (len(current_next_moves) == 1 and current_next_moves[0][1] == 0) or len(current_next_moves) <= 0:
-                tile = self._model._map.tile(robot_position)
-                neighbours = [x for x in tile.adjacencies()]
-                directions = self._model._map.clockBearing(robot_position)
-                if 0 in neighbours:
-                    i_zero = neighbours.index(0)
-                    del neighbours[i_zero]
-                    del directions[i_zero]
-                to_remove_indexes = []
-                for i, neighbour  in enumerate(neighbours):
-                    is_someone_on, _ = self.is_someone_on(neighbour)
-                    if is_someone_on:
-                        if i not in to_remove_indexes:
-                            to_remove_indexes.append(i)
-                
-                to_remove_indexes.sort(reverse=True)
-                for i in to_remove_indexes:
-                    del neighbours[i]
-                    del directions[i]
-                
-                if len(directions) > 0:
-                    i_rand = random.randint(0, len(directions) - 1)
-                    current_next_moves = [('move', directions[i_rand], neighbours[i_rand])]
-
-            # if no move is left, then it should stay at the same position
-            if len(current_next_moves) <= 0:
-                current_next_moves.append(("move", 0, robot_position))
-            
-            #self.log(f"\t- next_moves: {current_next_moves}")
-            next_moves[robot_id] = current_next_moves
-
-        # print(f"tick-{self._model._tic}")
-        tic = self._total_tic - self._model._tic
-        if tic > 5:
-            for robot_id in range(1, self._nb_robots + 1):
-                robot_position = self._model.mobilePosition(self._id, robot_id)
-                # print(f"robot-{robot_id}")
-                # print(f"position: {robot_position}")
-                for other_robot_id in range(1, self._nb_robots + 1):
-                    if robot_id == other_robot_id:
-                        continue
+                if distance == 1 and prior_robot == other_robot_id:
+                    self.log(f"\trobot-{robot_id} at position {robot_position}")
+                    self.log(f"\tother-robot-{other_robot_id} at position: {robot_position}")
+                    self.log(f"\tdistance: {distance}")
+                    self.log(f"\tprior-robot: {prior_robot}")
+                    neighbours = [x for x in self._model._map.neighbours(robot_position)]
+                    directions = self._model._map.clockBearing(robot_position)
                     
-                    # print(f"\tother-robot-{other_robot_id}")
-                    # print(f"\tother-robot-position: {robot_position}")
-                    other_robot_position = self._model.mobilePosition(self._id, other_robot_id)
-                    distance = self._distances[robot_position][other_robot_position]
-                    # print(f"\tdistance: {distance}")
-                    if distance > 2:
-                        continue
+                    if 0 in directions:
+                        i = directions.index(0)
+                        del neighbours[i]
+                        del directions[i]
                     
-                    prior_robot = self.get_prior_robot(robot_id, other_robot_id)
-                    # print(f"\tprior-robot: {prior_robot}")
-                    if distance == 1 and prior_robot == other_robot_id:
+                    tile_to_remove = []
+                    to_remove = []
+                    for i, tile in enumerate(neighbours):
+                        pieces = self._model._map.tile(tile)._pieces
+                        if len(pieces) > 0:
+                            if tile not in to_remove:
+                                tile_to_remove.append(tile)
+                            if i not in to_remove:
+                                to_remove.append(i)
+                    
+                    to_remove.sort(reverse=True)
+                    for i in to_remove:
+                        del neighbours[i]
+                        del directions[i]
+                    
+                    to_remove = []
+                    for i, (_, _, next_tile) in enumerate(next_moves[robot_id]):
+                        if next_tile in tile_to_remove:
+                            if i not in to_remove:
+                                to_remove.append(i)
+                    
+                    to_remove.sort(reverse=True)
+                    for i in to_remove:
+                        del next_moves[robot_id][i]
+
+                    for tile, dir in zip(neighbours, directions):
+                        next_moves[robot_id].append(("move", dir, tile))
+                    
+                elif distance == 2 and prior_robot == other_robot_id:
+                    self.log(f"\trobot-{robot_id} at position {robot_position}")
+                    self.log(f"\tother-robot-{other_robot_id} at position: {robot_position}")
+                    self.log(f"\tdistance: {distance}")
+                    self.log(f"\tprior-robot: {prior_robot}")
+                    conflicting_move = []
+                    old_robot_next_moves = [x for x in next_moves[robot_id]]
+                    other_robot_next_moves = next_moves[other_robot_id]
+
+                    for i, (_, _, current_next_tile) in enumerate(old_robot_next_moves):
+                        for _, _, other_robot_next_tile in other_robot_next_moves:
+                            if current_next_tile == other_robot_next_tile:
+                                if i not in conflicting_move:
+                                    conflicting_move.append(i)
+                    
+                    conflicting_move.sort(reverse=True)
+                    for i in conflicting_move:
+                        del next_moves[robot_id][i]
+                    
+                    if len(next_moves[robot_id]) > 0:
                         robot_next_moves = []
                         neighbours = [x for x in self._model._map.neighbours(robot_position)]
                         directions = self._model._map.clockBearing(robot_position)
                         
+                        current_dist = self._distances[robot_position][other_robot_position]
                         if 0 in directions:
                             i = directions.index(0)
                             del neighbours[i]
                             del directions[i]
                         
-                        tile_to_remove = []
                         to_remove = []
                         for i, tile in enumerate(neighbours):
-                            if tile == other_robot_position:
-                                if tile not in to_remove:
-                                    tile_to_remove.append(tile)
+                            next_dist = self._distances[tile][other_robot_position]
+                            pieces = self._model._map.tile(tile)._pieces
+                            if next_dist <= current_dist or len(pieces) > 0:
                                 if i not in to_remove:
                                     to_remove.append(i)
                         
@@ -840,76 +766,40 @@ class CompleteBot():
                         for i in to_remove:
                             del neighbours[i]
                             del directions[i]
-                        
-                        to_remove_index = []
-                        for i, (_, _, next_tile) in enumerate(next_moves[robot_id]):
-                            if next_tile in tile_to_remove:
-                                if i not in to_remove_index:
-                                    to_remove_index.append(i)
-                        
-                        to_remove_index.sort(reverse=True)
-                        for i in to_remove_index:
-                            del next_moves[robot_id][i]
 
                         for tile, dir in zip(neighbours, directions):
-                            next_moves[robot_id].append(("move", dir, tile))
+                            robot_next_moves.append(("move", dir, tile))
                         
-                    elif distance == 2 and prior_robot == other_robot_id:
-                        to_remove = []
-                        old_robot_next_moves = next_moves[robot_id]
-                        other_robot_next_moves = next_moves[other_robot_id]
-                        exist = False
-                        for i, (_, _, current_next_tile) in enumerate(old_robot_next_moves):
-                            for _, _, other_robot_next_tile in other_robot_next_moves:
-                                if current_next_tile == other_robot_next_tile:
-                                    if i not in to_remove:
-                                        to_remove.append(i)
-                        
-                        to_remove.sort(reverse=True)
-                        for i in to_remove:
-                            del next_moves[robot_id][i]
-                        
-                        if len(next_moves[robot_id]) > 0:
-                            robot_next_moves = []
-                            neighbours = [x for x in self._model._map.neighbours(robot_position)]
-                            directions = self._model._map.clockBearing(robot_position)
-                            
-                            current_dist = self._distances[robot_position][other_robot_position]
-                            if 0 in directions:
-                                i = directions.index(0)
-                                del neighbours[i]
-                                del directions[i]
-                            
-                            to_remove = []
-                            for i, tile in enumerate(neighbours):
-                                next_dist = self._distances[tile][other_robot_position]
-                                if next_dist <= current_dist:
-                                    if i not in to_remove:
-                                        to_remove.append(i)
-                            
-                            to_remove.sort(reverse=True)
-                            for i in to_remove:
-                                del neighbours[i]
-                                del directions[i]
-
-                            for tile, dir in zip(neighbours, directions):
-                                robot_next_moves.append(("move", dir, tile))
-                            
-                            next_moves[robot_id] = robot_next_moves
-
-        for robot_id in range(1, self._nb_robots + 1):
-            if len(next_moves[robot_id]) <= 0:
-                next_moves[robot_id].append(("move", 0, robot_position))
-             
+                        next_moves[robot_id] = robot_next_moves
+        
         return next_moves
-    
-    def get_mission_score(self, player_id, robot_id):
-        robot_mission_id = self._model.mobileMission(player_id, robot_id)
-        if robot_mission_id <= 0:
-            return 0
 
-        mission = self._model.mission(robot_mission_id)
-        return mission.reward
+    def apply_default_move(self, next_moves):
+        self.log("apply_default_move for:")
+        for robot_id in range(1, self._nb_robots+1):
+            robot_position = self._model.mobilePosition(self._id, robot_id)
+            if len(next_moves[robot_id]) <= 0:
+                self.log(f"\t- robot-{robot_id}")
+                next_moves[robot_id].append(("move", 0, robot_position))
+        
+        return next_moves
+
+    def get_mission_score(self, robot_id):
+        robot_mission_id = self._model.mobileMission(self._id, robot_id)
+        if robot_mission_id <= 0:
+            robot_reserved_mission_id = self._reservations[robot_id]
+            if robot_reserved_mission_id <= 0:
+                return 0
+
+        robot_position = self._model.mobilePosition(self._id, robot_id)
+        mission = self._model.mission(robot_reserved_mission_id)
+        distance = 0
+
+        if robot_mission_id <= 0:
+            distance += self._distances[robot_position][mission.start]
+        distance += self._distances[mission.start][mission.final]
+        
+        return float(mission.reward) / float(distance)
     
     def get_prior_robot(self, robot_id, other_robot_id):
         robot_score = self.calc_priority(robot_id)
@@ -917,96 +807,8 @@ class CompleteBot():
         robot_id_prior = robot_id if robot_score > other_robot_score else other_robot_id
         return robot_id_prior
 
-    def get_next_steps(self, player_id=1, reservations=None):
-        if reservations is None:
-            reservations = self.assign_missions()
-        
-        robot_positions = [self._model.mobilePosition(player_id, i) for i in range(1, self._nb_robots + 1)]
-        robot_positions.insert(0, -1)
-
-        map_centers=[]
-        next_moves=[[] for _ in range(self._nb_robots + 1)]
-        for robot_id in range(1, self._nb_robots + 1):
-            #self.log(f"{robot_id} robot:")
-            robot_position = robot_positions[robot_id] 
-            robot_mission_id = self._model.mobileMission(player_id, robot_id)
-            
-            current_next_moves = []
-            # if robot do not have a reserved mission, then it should go on the center of the map
-            if reservations[robot_id] < 0:
-                #self.log("\tno reserved missions")
-                map_center = int((self._model._map.size() / 2)) + 1
-                c = 1
-                while map_center in map_centers:
-                    map_center = map_center + c
-                    c += 1
-                    c *= -1
-                map_centers.append(map_center)
-                #self.log(f"\tgo to map center at cell {map_center}")
-                current_next_moves = self.move_toward(robot_position, map_center)
-                current_next_moves = [('move', *move) for move in current_next_moves]
-            # If robot reserved a mission, then it should go on its start position
-            elif robot_mission_id == 0 and reservations[robot_id] > 0:
-                #self.log(f"\thas reserved {reservations[robot_id]} mission")
-                robot_mission = self._model.mission(reservations[robot_id])
-                #self.log(f"\tgo to {robot_mission.start} cell")
-                if robot_position == robot_mission.start:
-                    current_next_moves = [('mission', reservations[robot_id], robot_position)]
-                else:
-                    current_next_moves = self.move_toward(robot_position, robot_mission.start)
-                    current_next_moves = [('move', *move) for move in current_next_moves]
-            # If robot activated a mission, then it should go on its final position
-            elif robot_mission_id > 0:
-                #self.log(f"\thas activated {robot_mission_id} mission")
-                robot_mission = self._model.mission(robot_mission_id)
-                #self.log(f"\tgo to {robot_mission.final} cell")
-                if robot_position == robot_mission.final:
-                    current_next_moves = [('mission', robot_mission_id, robot_position)]
-                else:
-                    current_next_moves = self.move_toward(robot_position, robot_mission.final)
-                    current_next_moves = [('move', *move) for move in current_next_moves]
-            
-            # Check if another robot is already going on the tile == avoid a collision between two robots
-            for other_robot_id in range(1, robot_id + 1):
-                # If the other robot is the same then it is not a collision
-                if other_robot_id == robot_id:
-                    continue
-                
-                other_robot_moves_to_remove = []
-                moves_to_remove = []
-                # We loop through the other robot moves to check if there is a collision
-                for i, (_, _, current_next_tile) in enumerate(current_next_moves):
-                    for j, (_, _, other_robot_tile) in enumerate(next_moves[other_robot_id]):
-                        if current_next_tile == other_robot_tile:
-                            if len(current_next_moves) > 1:
-                                if i not in moves_to_remove:
-                                    moves_to_remove.insert(0, i)
-                            elif len(next_moves[other_robot_id]) > 1:
-                                if j not in other_robot_moves_to_remove:
-                                    other_robot_moves_to_remove.insert(0, j)
-                            else:
-                                if i not in moves_to_remove:
-                                    moves_to_remove.insert(0, i)
-                
-                for i in moves_to_remove:
-                    #self.log(f"remove {i} in {current_next_moves}")
-                    del current_next_moves[i]
-                for i in other_robot_moves_to_remove:
-                    #self.log(f"remove {i} in {other_robot_moves_to_remove}")
-                    del next_moves[other_robot_id][i]
-            
-            # if no move is left, then it should stay at the same position
-            if len(current_next_moves) <= 0:
-                current_next_moves.append(("move", 0, robot_position))
-
-            #self.log(f"\t- next_moves: {current_next_moves}")
-            next_moves[robot_id] = current_next_moves
-        
-        return next_moves
-
     def detect_potential_collisions(self, player_i, robot_i, path, step_t=0):
         current_node = path
-        ## print(f"current_node: {current_node.value}")
         robot_position = self._model.mobilePosition(player_i, robot_i)
         to_remove_at = []
         remove_current = False
@@ -1018,16 +820,13 @@ class CompleteBot():
                 for other_robot_id in range(1, self._model.numberOfMobiles(other_player_id)):
                     other_robot_position = self._model.mobilePosition(other_player_id, other_robot_id)
                     distance_to_robot = self._distances[robot_position][other_robot_position]
-                    # # print(self._dict_state[other_player_id][other_robot_id])
                     if distance_to_robot % 2 == 0:
                         proba_other_robot = self.get_tile_probability(other_player_id, other_robot_id, current_node.value, step_t)
                     else:
                         proba_other_robot= self.get_tile_probability(other_player_id, other_robot_id, current_node.value, step_t+1)
-                    # # print(f"proba_first: {proba_other_robot_first}")
-                    # # print(f"proba_second: {proba_other_robot_second}")
                     if proba_other_robot >= 0.1:
                         to_remove = True
-                        # print(f"remove {next_node.value}")
+                        self.log(f"remove {next_node.value}")
                         to_remove_at.append(i)
                 
                     if to_remove:
@@ -1058,76 +857,11 @@ class CompleteBot():
             for i in other_remove:
                 del current_node._next_nodes[i]
 
-        return current_node, remove_current
-
-    def move_toward(self, iTile, iTarget):
-        # If no need to move:
-        if iTile == iTarget :
-            return [(0, iTile)]
-
-        result=[]
-        # Get candidates:
-        clockdirs= self._model.map().clockBearing(iTile)
-        nextTiles= self._model.map().neighbours(iTile)
-        selectedDir= clockdirs[0]
-        selectedNext= nextTiles[0]
-        robot_positions = [[]]
-        for player_id in range(1, self._nb_players + 1):
-            player_robot_positions = [self._model.mobilePosition(player_id, i) for i in range(1, self._nb_robots + 1)]
-            robot_positions.append(player_robot_positions)
-        # Test all candidates:
-        for clock, tile in zip( clockdirs, nextTiles ):
-            # If there already is a robot in the cell then we do not go on it
-            if any(tile in sub_positions for sub_positions in robot_positions):
-                continue
-
-            if self._distances[tile][iTarget] < self._distances[selectedNext][iTarget] :
-                result=[]
-                selectedDir= clock
-                selectedNext= tile
-                result.append((selectedDir, selectedNext))
-            elif self._distances[tile][iTarget] == self._distances[selectedNext][iTarget] :
-                selectedDir= clock
-                selectedNext= tile
-                result.append((selectedDir, selectedNext))
-
-        if len(result) == 0:
-            result.append((0, iTile))
-        
-        return result
-                
-    
-    def moveToward(self, iTile, iTarget):
-        # If no need to move:
-        if iTile == iTarget :
-            return 0, iTile
-        # Get candidates:
-        clockdirs= self._model.map().clockBearing(iTile)
-        nextTiles= self._model.map().neighbours(iTile)
-        selectedDir= clockdirs[0]
-        selectedNext= nextTiles[0]
-        # Test all candidates:
-        for clock, tile in zip( clockdirs, nextTiles ) :
-            if self._distances[tile][iTarget] < self._distances[selectedNext][iTarget] :
-                selectedDir= clock
-                selectedNext= tile
-
-        return selectedDir, selectedNext
-    
-    def path(self, iTile, iTarget):
-        clock, tile= self.moveToward(iTile, iTarget)
-        move= [clock]
-        path= [tile]
-        while tile != iTarget :
-            clock, tile= self.moveToward(tile, iTarget)
-            move.append( clock )
-            path.append( tile )
-        return move, path
+        return current_node, remove_current       
     
     def get_area_around(self, i_tile):
-        tile = self._model._map.tile(i_tile)
         sub_matrice = [[0 for _ in range(3)] for _ in range(3)]
-        adjencies = tile.adjacencies()
+        adjencies = [x for x in self._model._map.neighbours(i_tile)]
         directions = self._model._map.clockBearing(i_tile)
         if 12 not in directions or 9 not in directions or 3 not in directions or 6 not in directions:
             if 12 not in directions:
@@ -1191,10 +925,10 @@ class CompleteBot():
 
                 for move, tile in zip(possible_moves, adjacent_tiles):
                     if tile == current_position:
-                        movement_sequence = [str(move) for move in self._move_history]  # Convert history to strings
-                        movement_sequence.append(str(move))  # Append current move
+                        movement_sequence = [str(move) for move in self._move_history]
+                        movement_sequence.append(str(move))
 
-                        self._move_history.append(move)  # Update history
+                        self._move_history.append(move)
                         break
             
             self._previous_vip_position = current_position
@@ -1210,13 +944,13 @@ class CompleteBot():
                 move_history.append(move)
             
             for _ in range(depth):
-                # Exemple d'utilisation sur une nouvelle situation (env_new, moves_new)
+
                 env_new = torch.tensor([[element for row in sub_matrice for element in row]], dtype=torch.float32).to(self._device)  # environnement 3x3 (à adapter)
                 moves_new = torch.tensor([[self._move_mapping[move] for move in move_history]], dtype=torch.long).to(self._device)  # derniers mouvements encodés (exemple)
                 with torch.no_grad():
                     output = self._vip_predictor(env_new, moves_new)
                     predicted_class = torch.argmax(output, dim=1).item()
-                # Conversion inverse de l'encodage pour obtenir le mouvement prédict en valeur originale
+
                 predicted_move = self._inv_mapping[predicted_class]
 
                 vip_current_tile = self._model._map.tile(vip_position)
@@ -1231,12 +965,9 @@ class CompleteBot():
             
             return result
 
-    def init_priority_table(self):
-        self._priority_table = [robot_id for robot_id in range(1, self._nb_robots)]
-
     def calc_priority(self, robot_id):
         try:
-            robot_id_score = self.get_mission_score(self._id, robot_id)
+            robot_id_score = self.get_mission_score(robot_id)
             return 10 * robot_id_score + robot_id
         except Exception:
             return 0

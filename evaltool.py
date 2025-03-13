@@ -1,12 +1,20 @@
 #!env python3
-import json, time, matplotlib.pyplot as plt
+import os, json, time, matplotlib.pyplot as plt
 import hacka.games.moveit as moveit
 
 from grporange.grporange.team import bots as obots
 from grpbleu.src.team import bots as bbots
 from grpvert.team import bots as vbots
 
-def loadLog(aFile, games=None):
+def drawBotResuls(self, botResults, configName ) :
+    plt.ylim([-200,500])
+    for botName in botResults :
+        botColor= botName.split("-")[0]
+        plt.plot( botResults[botName], color=botColor )
+    plt.savefig( f"./log-resources/{configName}.png" )
+    plt.clf()
+
+def loadLog(aFile, color, games=None):
     if games == None :
         games= {}
     logDsc= open( aFile, "r" )
@@ -14,10 +22,11 @@ def loadLog(aFile, games=None):
         line= line[:-1]
         elts= line.split(", ")
         bot= elts[0]
-        config= '-'.join( elts[1:4] )
-        dur= float(elts[4])
-        results= [ float(e) for e in elts[5:] ]
-        games= mergeGames( games, bot, config, dur, results )
+        if bot.split('-')[0] == color :
+            config= '-'.join( elts[1:4] )
+            dur= float(elts[4])
+            results= [ float(e) for e in elts[5:] ]
+            games= mergeGames( games, bot, config, dur, results )
     logDsc.close()
     return games
 
@@ -68,6 +77,18 @@ class Eval():
         logDsc.write( line+"\n" )
         logDsc.close()
     
+    def mergeLogs(self, color):
+        games= {}
+        if os.path.isfile(f"results-{color}.json" ) :
+            fileContent= open(f"results-{color}.json")
+            games= json.load(fileContent)
+            fileContent.close()
+
+        games= loadLog( self._solo, color, games )
+        fileContent= open( f"results-{color}.json", "w" )
+        json.dump( games, fileContent, indent=1 )
+        fileContent.close()
+
     # Challengers :
     def initChallengers(self, teams, teamNames, okTeams ):
         self.report( "## Chalendgers\n\n" )
@@ -76,7 +97,8 @@ class Eval():
             bots= teamBots()
             self.report( f"\n{teamName}: ({ len(bots) } bots)\n" )
             for id in range( len(bots) ) :
-                challengers[ f"{teamName}-{id}" ]= (teamBots, id)
+                if okBots[id] :
+                    challengers[ f"{teamName}-{id}" ]= (teamBots, id)
         return challengers
 
 
@@ -121,30 +143,18 @@ class Eval():
         self.logSoloResults( botName, config, results[0], round( (tEnd-tStart), 3 ) )
         return results[0], round( (tEnd-tStart), 3 )
 
-    def increasingTeam(self, challengers, config):
-        configName= self._name + config
-
-        logDsc= open( self._filePath, "a" )
-        logDsc.write( f"\n![](./log-resources/{configName}.png)\n\n" )
-        logDsc.close()
-            
+    def increasingTeam(self, challengers, configFile):
         botResults= {}
         for botName in challengers :
             team, index = challengers[botName]
             botResults[botName]= []
             for nbBots in range(1, 9) :
-                results, duration= self.startGame( config, team()[index], self._nbOfXps, nbBots)
+                print( f">>>> {botName} : {nbBots}" )
+                results, duration= self.launchSoloGame(
+                    botName,
+                    team()[index],
+                    configFile,
+                    self._nbOfXps,
+                    nbBots
+                )
                 botResults[botName].append( round( sum(results)/self._nbOfXps, 3 ) )
-
-            logDsc= open( self._filePath, "a" )
-            logDsc.write( f"- {botName}: {botResults[botName]}\n" )
-            logDsc.close()
-            self.drawBotResuls(botResults, configName)
-
-    def drawBotResuls(self, botResults, configName ) :
-        plt.ylim([-200,500])
-        for botName in botResults :
-            botColor= botName.split("-")[0]
-            plt.plot( botResults[botName], color=botColor )
-        plt.savefig( f"./log-resources/{configName}.png" )
-        plt.clf()

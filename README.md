@@ -10,7 +10,7 @@ Les scripts `test_grpcolor` permettent de tester la valider du code d'un robot.
 Pour l'instant les tests se contentent de tester si les temps max ne sont pas dépassés.
 Pour bien faire, il faudrait inclure aussi des scores minimums à atteindre.
 
-Chaque script charge tout les bots de l'équipe et s'en débarrasse au fur et à mesure qu'ils ne passent pas les tests.
+Chaque script charge tous les bots de l'équipe et s'en débarrasse au fur et à mesure qu'ils ne passent pas les tests.
 
 Pour le lancer par exemple avec `red`:
 
@@ -29,7 +29,17 @@ Trois fichiers sont créés:
 
 ## Générer l'analyse Solo :
 
+Au-delà des scripts de test, le script `eval-solo.py` permet de lancer expérimentation pour faire augmenter progressivement le nombre de robots sur une carte donné.
 
+Au début du fichier les paramètres permettent de configurer l'expérience :
 
+```python
+configName= "medium-2"
+maxTime= 6.0 # maximum authorized time per game
+nbOfGames= 100
+vip= 0
+```
+
+Enfin, le script `eval-plot.py` interroge les fichiers de résultat json pour générer des représentations graphiques (to be completed).
 
 ## En mode Duo :

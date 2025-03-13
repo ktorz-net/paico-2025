@@ -60,4 +60,5 @@ def test_vip_large():
 def test_final_bots():
     global name, evaltool, challengers
     evaltool.report( f"\n## Conclusion :\n\nChallengers: { ', '.join(challengers.keys()) }" )
+    evaltool.mergeLogs(name)
     assert len(challengers) >= 1

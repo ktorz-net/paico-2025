@@ -14,6 +14,13 @@ class SpacialTimeGenBot():
         self.player_id = playerId
         self.game_engine = GameEngine()
         self.game_engine.fromPod(gameConfiguration)  # Load the model from gameConfiguration
+
+        if self.game_engine._map._size < 15:
+            self.map_size = "small"
+        elif self.game_engine._map._size < 40:
+            self.map_size = "medium"
+        else:
+            self.map_size = "large"
         
         if self.render:
             self.game_engine.render()
@@ -50,7 +57,7 @@ class SpacialTimeGenBot():
         return ""
 
     def sleep(self, result):
-        csv_file_path = f"./data-map{1}-history{self.history_length}.csv"
+        csv_file_path = f"./data-map-{self.map_size}-history{self.history_length}.csv"
         file_exists = os.path.exists(csv_file_path)
 
         with open(csv_file_path, "a", newline="") as file:

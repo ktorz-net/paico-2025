@@ -19,6 +19,24 @@ class BlancBot():
     def sleep(self, result):
         print( f"end on : {result}" )
 
+class GhostBot():
+    def __init__(self, botGen= "0"):
+        self._gen= botGen
+    
+    # Player interface :
+    def wakeUp(self, playerId, numberOfPlayers, gameConfiguration ):
+        self._instance= self._gen()
+        self._instance.wakeUp(playerId, numberOfPlayers, gameConfiguration)
+
+    def perceive(self, state ):
+        self._instance.perceive(state)
+
+    def decide(self):
+        return self._instance.decide()
+
+    def sleep(self, result):
+        self._instance.sleep(result)
+
 class VoidBot(BlancBot):
     # Player interface :
     def wakeUp(self, playerId, numberOfPlayers, gameConfiguration ):
@@ -62,7 +80,8 @@ class VoidBot(BlancBot):
         return f"move 1 {random.choice(dirs)}"
 
     def sleep(self, result):
-        print( f"end on : {result}" )
+        pass
+        #print( f"end on : {result}" )
 
     # Tools: 
     def missionOn(self, iTile):
@@ -162,7 +181,7 @@ class FirstBot():
         return f"move 1 {self._move}"
 
     def sleep(self, result):
-        print( f"end on : {result}" )
+        pass#print( f"end on : {result}" )
 
     ## Tools: 
     def missionOn(self, iTile):

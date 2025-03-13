@@ -1,0 +1,24 @@
+vert-2: 
+
+Traceback (most recent call last):
+  File "/home/guillaume/Projects/hacka-space/paico-2025/./eval-solo.py", line 45, in <module>
+    for color in colorTeam :
+  File "/home/guillaume/Projects/hacka-space/paico-2025/evaltool.py", line 153, in increasingTeam
+    results, duration= self.launchSoloGame(
+  File "/home/guillaume/Projects/hacka-space/paico-2025/evaltool.py", line 141, in launchSoloGame
+    results= gameMaster.launch( [bot1], nbOfGames)
+  File "/home/guillaume/.local/lib/python3.10/site-packages/hacka/py/game.py", line 57, in launch
+    self.startWithDealer(dealer, numberOfGames)
+  File "/home/guillaume/.local/lib/python3.10/site-packages/hacka/py/game.py", line 65, in startWithDealer
+    self.play(dealer)
+  File "/home/guillaume/.local/lib/python3.10/site-packages/hacka/py/game.py", line 84, in play
+    action= aDealer.activatePlayer( iPlayer, self.playerHand(iPlayer) )
+  File "/home/guillaume/.local/lib/python3.10/site-packages/hacka/py/interprocess.py", line 208, in activatePlayer
+    action= self.players[iPlayer].decide()
+  File "/home/guillaume/Projects/hacka-space/paico-2025/grpvert/bot.py", line 222, in decide
+    decision = self.decideBot(i)
+  File "/home/guillaume/Projects/hacka-space/paico-2025/grpvert/bot.py", line 205, in decideBot
+    new_paths = self.computeSafePath(idBot, current_tile, target_tile, self.paths)
+  File "/home/guillaume/Projects/hacka-space/paico-2025/grpvert/bot.py", line 371, in computeSafePath
+    robot1_target = paths[1][1][-1]  # Accède à la dernière position du chemin
+KeyError: 1

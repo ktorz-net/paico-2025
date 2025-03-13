@@ -1,10 +1,15 @@
 import evaltool, grptests
+from grpred.bot import GhostBot
 
-from grpbleu.src.team import bots
+from grpbleu.src.bot import Bot
+#from grpbleu.src.team import bots
 
 name= "bleu"
 evaltool= evaltool.Eval( f"{name}-test", 10 )
 challengers= {}
+
+def bots():
+    return [ Bot(), GhostBot( Bot ) ]
 
 def test_solo_loadBots():
     global name, evaltool, challengers
@@ -58,4 +63,5 @@ def test_vip_large():
 def test_final_bots():
     global name, evaltool, challengers
     evaltool.report( f"\n## Conclusion :\n\nChallengers: { ', '.join(challengers.keys()) }" )
+    evaltool.mergeLogs(name)
     assert len(challengers) >= 1

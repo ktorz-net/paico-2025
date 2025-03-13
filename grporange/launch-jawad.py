@@ -13,13 +13,13 @@ with open(f"./configs/{map}") as file:
 
 gameEngine= moveit.GameEngine(
     matrix= matrix,
-    numberOfPlayers=2, numberOfRobots=2, tic=100,
-    missions= [(20, 32), (16, 24), (6, 7)],
+    numberOfPlayers=1, numberOfRobots=3, tic=100,
+    missions= [(1, 32), (16, 24), (6, 7)],
     numberOfPVips=1
 )
-player= CompleteBot()
+player= CompleteBot(debug=True)
 player2= MultiBot()
 gameMaster= moveit.GameMaster(gameEngine, randomMission=10)
-gameMaster.launch([player, player2], gameEngine.numberOfPlayers())
+gameMaster.launch([player], gameEngine.numberOfPlayers())
 
 print("Terminé")

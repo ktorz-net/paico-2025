@@ -1,16 +1,10 @@
 import random
-import time
 import copy
 import torch
-import sys
 import os
 
 from collections import deque
 from hacka.games.moveit import GameEngine
-
-# classifier = os.path.abspath('./classifier')
-# if classifier not in sys.path:
-#     sys.path.insert(0, classifier)
 
 from .classifier import VipMovementPredictor
 
