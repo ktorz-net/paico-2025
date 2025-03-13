@@ -2,6 +2,7 @@
 import json, time, matplotlib.pyplot as plt
 import hacka.games.moveit as moveit
 
+from grpred.team import bots as rbots
 from grporange.grporange.team import bots as obots
 from grpbleu.src.team import bots as bbots
 from grpvert.team import bots as vbots
@@ -9,9 +10,10 @@ from grpvert.team import bots as vbots
 import evaltool
 
 # Build the list of bots.
-teams= [ obots, bbots, vbots ]
-teamNames= [ "orange", "blue", "green" ]
-okTeams= [ 
+teams= [ rbots, obots, bbots, vbots ]
+teamNames= [ "red", "orange", "blue", "green" ]
+okTeams= [
+    [False, True],
     [False, False, False, False],
     [False, True],
     [False, False, False]

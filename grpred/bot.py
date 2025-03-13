@@ -1,6 +1,6 @@
 from hacka.games.moveit import GameEngine
 
-import random, time
+import random#, time
 
 class BlancBot():
     def __init__(self, name= "0"):
@@ -37,11 +37,11 @@ class VoidBot(BlancBot):
         self._model.setOnState(state)
 
     def decide(self):
-        print( f"--- Player{self._id} rendering..." )
-        self._model.render()
-        time.sleep(0.33)
+        #print( f"--- Player{self._id} rendering..." )
+        #self._model.render()
+        #time.sleep(0.33)
         action= self.randomDecide()
-        print( f"--- Player{self._id} do: {action}" )
+        #print( f"--- Player{self._id} do: {action}" )
         return action
 
     def randomDecide(self):
@@ -134,7 +134,7 @@ class FirstBot():
         self._model= GameEngine()
         self._model.fromPod(gameConfiguration)  # Load the model from gameConfiguration
         self._model.render()                    # Draw the game image in shot-moveIt.png
-        time.sleep(0.5)
+        #time.sleep(0.5)
         # Compute distances:
         self._distances= [[i for i in range( self._model.map().size()+1 )]]
         for i in range( 1, len(self._distances[0]) ) :
@@ -143,7 +143,7 @@ class FirstBot():
     def perceive(self, gameState ):
         self._model.setOnState(gameState)        # Update the model sate        self._model= GameEngine()
         self._model.render()                    # Draw the game image in shot-moveIt.png
-        time.sleep(0.2)
+        #time.sleep(0.2)
 
     def decide(self):
         r1Position= self._model.mobilePosition(self._id, 1)
