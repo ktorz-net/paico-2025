@@ -18,6 +18,10 @@ def test_solo_bot_1():
     global name, evaltool, challengers
     challengers= grptests.testBot(name, evaltool, challengers, 1)
 
+def test_solo_bot_2():
+    global name, evaltool, challengers
+    challengers= grptests.testBot(name, evaltool, challengers, 2)
+
 def test_solo_small():
     global name, evaltool, challengers
     evaltool.report( f"\n## Solo Small :\n" )

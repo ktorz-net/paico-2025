@@ -6,6 +6,34 @@ from grporange.grporange.team import bots as obots
 from grpbleu.src.team import bots as bbots
 from grpvert.team import bots as vbots
 
+def loadLog(aFile, games=None):
+    if games == None :
+        games= {}
+    logDsc= open( aFile, "r" )
+    for line in logDsc:
+        line= line[:-1]
+        elts= line.split(", ")
+        bot= elts[0]
+        config= '-'.join( elts[1:4] )
+        dur= float(elts[4])
+        results= [ float(e) for e in elts[5:] ]
+        games= mergeGames( games, bot, config, dur, results )
+    logDsc.close()
+    return games
+
+def mergeGames( games, bot, config, dur, results ):
+    if bot not in games :
+        games[bot]= { config : [results, dur] }
+        return games
+    if config not in games[bot] :
+        games[bot][config]= [results, dur]
+        return games
+    past= len(games[bot][config][0])
+    new= len(results)
+    games[bot][config][0]+= results
+    games[bot][config][1]= (games[bot][config][1]*past + dur*new) / (past+new)
+    return games
+
 class Eval():
     def __init__(self, name, nbOfXps):
         self._name= name

@@ -2,7 +2,7 @@ import evaltool, grptests
 
 from grpbleu.src.team import bots
 
-name= "blue"
+name= "bleu"
 evaltool= evaltool.Eval( f"{name}-test", 10 )
 challengers= {}
 
