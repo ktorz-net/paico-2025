@@ -54,3 +54,8 @@ def test_vip_large():
     evaltool.setVip(1)
     evaltool.report( f"\n## Vip Large :\n" )
     challengers= grptests.testLarge(name, evaltool, challengers)
+
+def test_final_bots():
+    global name, evaltool, challengers
+    evaltool.report( f"\n## Conclusion :\n\nChallengers: { ', '.join(challengers.keys()) }" )
+    assert len(challengers) >= 1

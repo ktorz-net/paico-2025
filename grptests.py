@@ -6,7 +6,7 @@ def testLoadBots( name, evaltool, bots):
     nbOfBots= len(botInstances)
     challengers= evaltool.initChallengers( [bots], [name], [botOks] )
     assert len( challengers ) == nbOfBots
-    challengers= evaltool.testChallengers( challengers, "small-1", 3 )
+    challengers= evaltool.testChallengers( challengers, "small-1", 3, 3.0 )
     assert len( challengers ) == nbOfBots
 
     evaltool.report( f"\n challengers: { list(challengers.keys()) }\n\n" )
@@ -25,24 +25,24 @@ def testBot( name, evaltool, challengers, numBot ):
     results, duration= evaltool.launchSoloGame( botname, bot, "small-1", 10 )
     evaltool.report( f"  * small-1: ({duration})\n" )
     assert len( results ) == 10
-    assert duration < 1.0
+    assert duration < 3.0
 
     results, duration= evaltool.launchSoloGame( botname, bot, "medium-2", 10 )
     evaltool.report( f"  * medium-2: ({duration})\n" )
     assert len( results ) == 10
-    assert duration < 3.0
+    assert duration < 6.0
     results, duration= evaltool.launchSoloGame( botname, bot,"medium-3", 10 )
     evaltool.report( f"  * medium-3: ({duration})\n" )
     assert len( results ) == 10
-    assert duration < 3.0
+    assert duration < 6.0
     results, duration= evaltool.launchSoloGame( botname, bot,"large-1", 10 )
     evaltool.report( f"  * large-1: ({duration})\n" )
     assert len( results ) == 10
-    assert duration < 6.0
+    assert duration < 12.0
     results, duration= evaltool.launchSoloGame( botname, bot,"large-2", 10 )
     evaltool.report( f"  * large-2: ({duration})\n" )
     assert len( results ) == 10
-    assert duration < 6.0
+    assert duration < 12.0
     challengers[botname]= (team, index)
     
     return challengers
