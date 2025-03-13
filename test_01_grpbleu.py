@@ -1,19 +1,17 @@
 import evaltool, grptests
 
-from grpred.team import bots
+from grpbleu.src.team import bots
 
-name= "red"
+name= "blue"
 evaltool= evaltool.Eval( f"{name}-test", 10 )
 challengers= {}
 
 def test_solo_loadBots():
     global name, evaltool, challengers
     challengers= grptests.testLoadBots(name, evaltool, bots)
-    assert list(challengers.keys()) == ['red-0', 'red-1']
 
 def test_solo_bot_0():
     global name, evaltool, challengers
-    print( challengers )
     challengers= grptests.testBot(name, evaltool, challengers, 0)
 
 def test_solo_bot_1():
@@ -56,3 +54,8 @@ def test_vip_large():
     evaltool.setVip(1)
     evaltool.report( f"\n## Vip Large :\n" )
     challengers= grptests.testLarge(name, evaltool, challengers)
+
+def test_final_bots():
+    global name, evaltool, challengers
+    evaltool.report( f"\n## Conclusion :\n\nChallengers: { ', '.join(challengers.keys()) }" )
+    assert len(challengers) >= 1

@@ -10,10 +10,13 @@ class Eval():
     def __init__(self, name, nbOfXps):
         self._name= name
         self._report= f"log-eval-{self._name}.md"
+        self._solo= f"log-solo-{self._name}.log"
         self._nbOfXps= nbOfXps
         self._vip= 0
         reportDsc= open( self._report, "w" )
         reportDsc.close()
+        logDsc= open( self._solo, "w" )
+        logDsc.close()
 
     def setVip(self, anInt):
         self._vip= max( 0, min(anInt, 1))
@@ -23,6 +26,19 @@ class Eval():
         reportDsc= open( self._report, "a" )
         reportDsc.write( lines )
         reportDsc.close()
+    
+    def reportResults(self, botName, results, duration ):
+        nbOfXps= len( results )
+        rmin, rmax= min( results ), max( results)
+        rave= round( sum(results)/nbOfXps, 3 )
+        self.report( f"{botName} | {nbOfXps} | {rmin} | {rave} | {rmax} | {duration}s |\n" )
+    
+    def logSoloResults(self, botName, config, results, duration ):
+        line= f"{botName}, {config['name']}, {config['numberOfRobots']}, {self._vip}, {duration}, "
+        line+= ', '.join( [str(r) for r in results] )
+        logDsc= open( self._solo, "a" )
+        logDsc.write( line+"\n" )
+        logDsc.close()
     
     # Challengers :
     def initChallengers(self, teams, teamNames, okTeams ):
@@ -44,29 +60,25 @@ class Eval():
             team, index = challengers[botName]
             bot= team()[index]
             print( f">>> {botName}" )
-            results, duration= self.launchSoloGame( config, bot, nbOfXps)
-            self.logResults( botName, results, duration )
+            results, duration= self.launchSoloGame( botName, bot, config, nbOfXps)
+            self.reportResults( botName, results, duration )
             if duration <= maxAveDuration :
                 okChallengers[botName]= (team, index)
         return okChallengers
 
-    def logResults(self, botName, results, duration ):
-        nbOfXps= len( results )
-        rmin, rmax= min( results ), max( results)
-        rave= round( sum(results)/nbOfXps, 3 )
-        self.report( f"{botName} | {nbOfXps} | {rmin} | {rave} | {rmax} | {duration}s |\n" )
 
-    def launchSoloGame(self, configFile, bot1, nbOfGames= 1, nbOfRobots= None):
+    def launchSoloGame(self, botName, bot1, configFile, nbOfGames= 1, nbOfRobots= None):
         with open( f"configs/{configFile}.json" ) as file:
             config= json.load(file)
-        if nbOfRobots == None :
-            nbOfRobots= config['numberOfRobots']
+        config['name']= configFile
+        if nbOfRobots != None :
+            config['numberOfRobots']= nbOfRobots
         # Configure the game:
         gameEngine= moveit.GameEngine(
             matrix= config['matrix'],
             tic= config['tic'],
             numberOfPlayers= 1,
-            numberOfRobots= nbOfRobots,
+            numberOfRobots= config['numberOfRobots'],
             numberOfPVips= self._vip
         )
         # Then Go...
@@ -78,67 +90,8 @@ class Eval():
         tStart= time.perf_counter()
         results= gameMaster.launch( [bot1], nbOfGames)
         tEnd= time.perf_counter()
+        self.logSoloResults( botName, config, results[0], round( (tEnd-tStart), 3 ) )
         return results[0], round( (tEnd-tStart), 3 )
-
-
-
-
-
-
-
-
-    def iiiinitChallengers(self, config, teams, teamNames, okTeams, maxDuration= 1.0 ):
-        self.write( "## Chalendgers\n\n" )
-        challengers= {}
-        for teamBots, teamName, okBots in zip( teams, teamNames, okTeams ) :
-            bots= teamBots()
-            print( f"\n{teamName}: ({ len(bots) } bots)\n" )
-            self.write( f"\n{teamName}: ({ len(bots) } bots)\n" )
-            for id in range( len(bots) ) :
-                print( f"- {teamName}-{id}" )
-                if okBots[id] :
-                    print( f"- {teamName}-{id}" )
-                    results, duration= self.launchSoloGame( config, bots[id])
-                    self.write( f" - duration ({config}): {duration}s ({results[0]})\n" )
-                    if duration < 1.0 :
-                        challengers[ f"{teamName}-{id}" ]= (teamBots, id)
-        return challengers
-
-    
-
-
-    def bench(self, challengers, configList, vip=0):
-        for config in configList :
-            logDsc= open( self._filePath, "a" )
-            logDsc.write( f"\n{config} | min | average | max | t \n" )
-            logDsc.write( f"-----------|-----|-----|-----|-----\n" )
-            logDsc.close()
-            for botName in challengers :
-                team, index = challengers[botName]
-                bot= team()[index]
-                print( f">>> {botName}" )
-                results, duration= self.startGame( config, bot, self._nbOfXps)
-                self.log( botName, results, duration )
-    
-
-
-
-
-
-
-
-
-    def log(self, config, results, duration ):
-        logDsc= open( self._filePath, "a" )
-        nbOfGames= len(results)
-        rmin, rmax= min( results ), max( results)
-        rave= round( sum(results)/nbOfGames, 3 )
-        logDsc.write( f"{config} | {rmin} | {rave} | {rmax} | {round(duration/nbOfGames, 3)}s\n" )
-        logDsc.close()
-
-
-
-    
 
     def increasingTeam(self, challengers, config):
         configName= self._name + config

@@ -14,6 +14,7 @@ def testLoadBots( name, evaltool, bots):
     return challengers
 
 def testBot( name, evaltool, challengers, numBot ):
+    print( f">> testBot({ name, evaltool, challengers, numBot })" )
     botname= f"{name}-{numBot}"
 
     evaltool.report( f"- test: {botname}\n" )
@@ -21,24 +22,24 @@ def testBot( name, evaltool, challengers, numBot ):
     team, index = challengers[botname]
     challengers.pop(botname)
     bot= team()[index]
-    results, duration= evaltool.launchSoloGame( "small-1", bot, 10 )
+    results, duration= evaltool.launchSoloGame( botname, bot, "small-1", 10 )
     evaltool.report( f"  * small-1: ({duration})\n" )
     assert len( results ) == 10
     assert duration < 1.0
 
-    results, duration= evaltool.launchSoloGame( "medium-2", bot, 10 )
+    results, duration= evaltool.launchSoloGame( botname, bot, "medium-2", 10 )
     evaltool.report( f"  * medium-2: ({duration})\n" )
     assert len( results ) == 10
     assert duration < 3.0
-    results, duration= evaltool.launchSoloGame( "medium-3", bot, 10 )
+    results, duration= evaltool.launchSoloGame( botname, bot,"medium-3", 10 )
     evaltool.report( f"  * medium-3: ({duration})\n" )
     assert len( results ) == 10
     assert duration < 3.0
-    results, duration= evaltool.launchSoloGame( "large-1", bot, 10 )
+    results, duration= evaltool.launchSoloGame( botname, bot,"large-1", 10 )
     evaltool.report( f"  * large-1: ({duration})\n" )
     assert len( results ) == 10
     assert duration < 6.0
-    results, duration= evaltool.launchSoloGame( "large-2", bot, 10 )
+    results, duration= evaltool.launchSoloGame( botname, bot,"large-2", 10 )
     evaltool.report( f"  * large-2: ({duration})\n" )
     assert len( results ) == 10
     assert duration < 6.0

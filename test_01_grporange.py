@@ -1,19 +1,17 @@
 import evaltool, grptests
 
-from grpred.team import bots
+from grporange.grporange.team import bots
 
-name= "red"
+name= "orange"
 evaltool= evaltool.Eval( f"{name}-test", 10 )
 challengers= {}
 
 def test_solo_loadBots():
     global name, evaltool, challengers
     challengers= grptests.testLoadBots(name, evaltool, bots)
-    assert list(challengers.keys()) == ['red-0', 'red-1']
 
 def test_solo_bot_0():
     global name, evaltool, challengers
-    print( challengers )
     challengers= grptests.testBot(name, evaltool, challengers, 0)
 
 def test_solo_bot_1():
