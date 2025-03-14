@@ -9,9 +9,9 @@ import evaltool
 
 # Parramétre de l'expérience
 configName= "large-4"
-maxTime= 12.0
+maxTime= 21.0
 nbOfGames= 100
-vip= 0
+vip= 1
 
 #Prof version of bleuBot
 def bbots():
