@@ -8,8 +8,8 @@ from grpvert.team import bots as vbots
 import evaltool
 
 # Parramétre de l'expérience
-configName= "medium-2"
-maxTime= 6.0
+configName= "large-4"
+maxTime= 12.0
 nbOfGames= 100
 vip= 0
 

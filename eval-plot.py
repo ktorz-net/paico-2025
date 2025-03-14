@@ -2,8 +2,7 @@
 import json, matplotlib.pyplot as plt
 
 # Parramétre de l'expérience
-configName= "medium-2"
-vip=0
+configs= [ ("medium-2", 0 ), ("large-4", 0) ]
 
 teams= ["red", "orange", "bleu", "vert" ]
 colors= ["red", "orange", "blue", "green" ]
@@ -27,27 +26,30 @@ def getresults(color, config, vip):
            results[bot]= averages 
     return results
 
-data= []
-for t in teams :
-    data.append( getresults(t, configName, vip) )
+for configName, vip in configs :
+    data= []
+    for t in teams :
+        data.append( getresults(t, configName, vip) )
 
-maxValue= 100
-for resultDico, color in zip(data, colors) :
-    for bot in resultDico :
-        maxValue= max( maxValue, max(resultDico[bot]) )
-        plt.plot( 
-            range(1,9),
-            resultDico[bot],
-            color=color )
-plt.show()
+    maxValue= 100
+    for resultDico, color in zip(data, colors) :
+        for bot in resultDico :
+            maxValue= max( maxValue, max(resultDico[bot]) )
+            plt.plot( 
+                range(1,9),
+                resultDico[bot],
+                color=color )
+    plt.show()
 
-maxValue= round( maxValue/100 ) * 100
+    maxValue= round( maxValue/100 ) * 100
+    ax = plt.figure().gca()
+    
+    plt.ylim(-200, maxValue)
 
-plt.ylim(-200, maxValue)
-for resultDico, color in zip(data, colors) :
-    for bot in resultDico :
-        plt.plot( 
-            range(1,9),
-            resultDico[bot],
-            color=color )
-plt.show()
+    for resultDico, color in zip(data, colors) :
+        for bot in resultDico :
+            plt.plot( 
+                range(1,9),
+                resultDico[bot],
+                color=color )
+    plt.show()
