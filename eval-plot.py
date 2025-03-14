@@ -42,10 +42,10 @@ for configName, vip in configs :
     plt.show()
 
     maxValue= round( maxValue/100 ) * 100
-    ax = plt.figure().gca()
-    
-    plt.ylim(-200, maxValue)
 
+    plt.ylim(-200, maxValue)
+    plt.grid(True)
+    
     for resultDico, color in zip(data, colors) :
         for bot in resultDico :
             plt.plot( 
