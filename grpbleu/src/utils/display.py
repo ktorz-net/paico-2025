@@ -1,7 +1,7 @@
 class Display:
     @classmethod
     def displayDistanceMatrix(cls, game):
-        """Display distance matrix in readable format"""
+        """ Display distance matrix in readable format """
         print("\nDistance Matrix (showing non-zero distances):")
         map_size = game.getModel().map().size()
 
@@ -21,6 +21,7 @@ class Display:
 
     @classmethod
     def displayRobotMissions(cls, robots):
+        """ Display selected and execute missions of robots in readable format """
         message = ""
         for robot in robots:
             message_selected_missions = ""

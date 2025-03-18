@@ -23,8 +23,6 @@ class MultiBot():
         self._model= GameEngine()
         self._model.fromPod(gameConfiguration)
         self._id= playerId
-        self._model.render()
-        print( f"Output image : ./shot-moveIt.png" ) 
         self.initGame()
         
     def initGame(self):
@@ -47,32 +45,32 @@ class MultiBot():
     def assignOptimalMissions(self):
         bot_positions = {bot_id: self._model.mobilePosition(self._id, bot_id) for bot_id in range(1, self._numberOfMobiles + 1)}
         remaining_missions = list(self._free_missions)
-        bot_mission_distances = {bot_id: [] for bot_id in bot_positions}
+        all_distances = [] # liste distance (distance,bot,mission) 
         
         # Calcul des distances entre chaque bot et chaque mission
         for bot_id, bot_pos in bot_positions.items():
             for mission_id in remaining_missions:
                 mission_start = self._model.mission(mission_id).start
                 distance = self._distances[bot_pos][mission_start]
-                bot_mission_distances[bot_id].append((distance, mission_id))
+                all_distances.append((distance,bot_id, mission_id))
         
-        # Trie les missions par distance croissante pour chaque bot
-        for bot_id in bot_mission_distances:
-            bot_mission_distances[bot_id].sort()
-
-        #print("dict trié des distances : ", bot_mission_distances)
+        # Trie les distances par ordre croissant
+        all_distances.sort()
 
         assigned_missions = set()
+        used_bots = set()
         
-        # Assigner les missions en fonction des distances
-        for bot_id in bot_positions:
-            for distance, mission_id in bot_mission_distances[bot_id]:
-                if mission_id not in assigned_missions:
-                    self._missions[bot_id] = mission_id
-                    assigned_missions.add(mission_id)
-                    break
+        # Assigner les missions en donnant la priorité au bot le plus proche
+        for distance, bot_id, mission_id in all_distances:
+            if mission_id not in assigned_missions and bot_id not in used_bots:
+                self._missions[bot_id] = mission_id
+                assigned_missions.add(mission_id)
+                used_bots.add(bot_id)
 
     def minDistanceToMission(self, id_player, id_bot):
+        """
+        Calcul la distance entre la position actuelle du robot et la mission afin de renvoyer la mission la plus proche
+        """
         current_tile = self._model.mobilePosition(id_player, id_bot)
 
         if not self._free_missions:
@@ -98,13 +96,14 @@ class MultiBot():
             
             score = reward / total_distance
             
-            # Pénalité si un robot ennemi est trop proche
-            for enemy_id, (enemy_pos, enemy_mission) in self._enemyPositions.items():
-                
-                if enemy_mission != 0 and enemy_mission != None:
-                    enemy_distance = self._distances[enemy_pos][start]
-                    if enemy_distance < distance_to_start:
-                        score -= 10
+            if self._numberOfPlayers != 1:
+                # Pénalité si un robot ennemi est trop proche
+                for enemy_id, (enemy_pos, enemy_mission) in self._enemyPositions.items():
+                    
+                    if enemy_mission != 0 and enemy_mission != None:
+                        enemy_distance = self._distances[enemy_pos][start]
+                        if enemy_distance < distance_to_start:
+                            score -= 10
             
             if score > best_score:
                 best_score = score
@@ -118,11 +117,14 @@ class MultiBot():
         Mise à jour de l'état du jeu à chaque tour.
         """
         self._model.setOnState(state)
-        self._model.render()
         self._free_missions = self._model.freeMissions()
-        self._enemyPositions = self.getEnemyPosition()
+        if self._numberOfPlayers != 1:
+            self._enemyPositions = self.getEnemyPosition()
 
     def setMissions(self, robot_id):
+        """
+        Attribut la mission la plus proche du robot
+        """
         if not self._free_missions:
             return
         min_mission_id = self.minDistanceToMission(self._id, robot_id)
@@ -132,7 +134,7 @@ class MultiBot():
     def getEnemyPosition(self):
         """ Récupère la position des robots adverses et leurs missions. """
         enemy_players = [player_id for player_id in range(1, self._numberOfPlayers + 1) if self._id != player_id]
-        enemy_positions = {}
+        enemy_positions = self._enemyPositions
         
         for player_id in enemy_players:
             for bot_id in range(1, self._model.numberOfMobiles(iPlayer=player_id) + 1):
@@ -140,7 +142,10 @@ class MultiBot():
                 mission = self._model.mobileMission(player_id, bot_id)
                 if mission == 0:
                     mission = self.minDistanceToMission(player_id, bot_id)
-                enemy_positions[bot_id] = (position, mission)
+                old_value = enemy_positions.get(bot_id)
+                if old_value is None or old_value[1] != mission:
+                    enemy_positions[bot_id] = (position, mission)
+
         return enemy_positions
 
     def decideBot(self, idBot):
@@ -181,7 +186,18 @@ class MultiBot():
                 # Si mon bot veut aller là où l'ennemi va se déplacer, il ne bouge pas
                 if enemy_next_pos == bot_next_pos:
                     return "pass"
-        
+                
+        for ally_id in range(1, self._model.numberOfMobiles(self._id) + 1):
+            if ally_id != idBot:
+                ally_pos = self._model.mobilePosition(self._id, ally_id)
+                ally_next_move, ally_next_pos = self.moveToward(ally_pos, self._model.mission(self._missions[ally_id]).final)
+                if bot_next_pos == ally_pos:  # S'il y a un bot allié à la prochaine case
+                    return f"move {idBot} {0}"
+                if bot_next_pos == ally_next_pos:
+                    if idBot > ally_id: 
+                        return f"move {idBot} {0}"
+                    return f"move {ally_id} {0}  "
+
         if current_mission != 0:
             mission_obj = self._model.mission(current_mission)
             target_tile = mission_obj.final
@@ -228,9 +244,7 @@ class MultiBot():
                 move += decision_result
         return f"mission{mission} move{move}"
 
-
     def sleep(self, result):
-        print(f"end on : {result}")
         self._sumResult += result
         self._countResult += 1
 
@@ -368,7 +382,10 @@ class MultiBot():
         
         # Si aucun chemin valide, modifie le chemin du robot 1
         robot1_current = self._model.mobilePosition(self._id, 1)
-        robot1_target = paths[1][1][-1]  # Accède à la dernière position du chemin
+        try :
+            robot1_target = paths[1][1][-1]  # Accède à la dernière position du chemin
+        except Exception as e:
+            return []
         
         robot1_paths = self.path(robot1_current, robot1_target, max_paths=50)
         
@@ -429,9 +446,10 @@ class UltimateBot():
     def perceive(self, state):
         """Mise à jour de l'état du jeu."""
         self._model.setOnState(state)
-        self._model.render()
+        #self._model.render()
         self._free_missions = self._model.freeMissions()
-        self._enemyPositions = self.getEnemyPosition()
+        if self._numberOfPlayers != 1:
+            self._enemyPositions = self.getEnemyPosition()
 
     def assignOptimalMissions(self):
         """Attribue des missions optimales en fonction des distances."""
@@ -459,6 +477,9 @@ class UltimateBot():
                     break
 
     def minDistanceToMission(self, id_player, id_bot):
+        """
+        Calcul la distance entre la position actuelle du robot et la mission afin de renvoyer la mission la plus proche
+        """
         current_tile = self._model.mobilePosition(id_player, id_bot)
 
         if not self._free_missions:
@@ -485,9 +506,8 @@ class UltimateBot():
             score = reward / total_distance
             
             # Pénalité si un robot ennemi est trop proche
-            if self._enemyPositions:
+            if self._numberOfPlayers != 1:
                 for enemy_id, (enemy_pos, enemy_mission) in self._enemyPositions.items():
-                    
                     if enemy_mission != 0 and enemy_mission != None:
                         enemy_distance = self._distances[enemy_pos][start]
                         if enemy_distance < distance_to_start:
@@ -509,7 +529,7 @@ class UltimateBot():
     def getEnemyPosition(self):
         """ Récupère la position des robots adverses et leurs missions. """
         enemy_players = [player_id for player_id in range(1, self._numberOfPlayers + 1) if self._id != player_id]
-        enemy_positions = {}
+        enemy_positions = self._enemyPositions
         
         for player_id in enemy_players:
             for bot_id in range(1, self._model.numberOfMobiles(iPlayer=player_id) + 1):
@@ -517,7 +537,10 @@ class UltimateBot():
                 mission = self._model.mobileMission(player_id, bot_id)
                 if mission == 0:
                     mission = self.minDistanceToMission(player_id, bot_id)
-                enemy_positions[bot_id] = (position, mission)
+                old_value = enemy_positions.get(bot_id)
+                if old_value is None or old_value[1] != mission:
+                    enemy_positions[bot_id] = (position, mission)
+
         return enemy_positions
 
     def takeDecision(self, idBot):
@@ -627,10 +650,8 @@ class UltimateBot():
 
         for robot_number in sorted_robots:
             self._other_robot_positions = [valeur for cle, valeur in robot_positions.items() if cle != robot_number]
-            enemies_positions = [ enemy_pos for _, (enemy_pos, _) in self._enemyPositions.items()]
-            self._other_robot_positions += enemies_positions
-            for position in enemies_positions:
-                self._other_robot_positions += self._model.map().neighbours(position)
+            if self._numberOfPlayers != 1:
+                self.addEnemiesPositions()
             decision = self.takeDecision(int(robot_number))
             if "mission" in decision:
                 decision_result = decision.split("mission")[1]
@@ -640,6 +661,13 @@ class UltimateBot():
                 move += decision_result
 
         return f"mission {mission.lstrip()} move {move.lstrip()}"
+    
+    def addEnemiesPositions(self):
+        """Stocke les positions des enemies pour bloquer les cases """
+        enemies_positions = [ enemy_pos for _, (enemy_pos, _) in self._enemyPositions.items()]
+        self._other_robot_positions += enemies_positions
+        for position in enemies_positions:
+            self._other_robot_positions += self._model.map().neighbours(position)
 
     def computeDistances(self, iTile):
         """Calculer les meilleures distances."""
@@ -693,10 +721,8 @@ class UltimateBot():
             all_neighbours = self._model.map().neighbours(current_tile)
             self._neighbours_tiles = [e for e in all_neighbours]
             self._other_robot_positions = [valeur for cle, valeur in robot_positions.items() if cle != str(i)]
-            enemies_positions = [ enemy_pos for _, (enemy_pos, _) in self._enemyPositions.items()]
-            self._other_robot_positions += enemies_positions
-            for position in enemies_positions:
-                self._other_robot_positions += self._model.map().neighbours(position)
+            if self._numberOfPlayers != 1:
+                self.addEnemiesPositions()
             current_tile = self._model.mobilePosition(self._id, i)
             self.remove_avoid_tiles(current_tile)
             dict_remain_dirs[str(i)] = len(self._dirs)
@@ -707,36 +733,43 @@ class UltimateBot():
 
     def sleep(self, result):
         """Met fin au tour."""
-        print()
-        print(f"{self._name} end on : {result}")
         self._sumResult += result
         self._countResult += 1
 
 class SoloBot():
-    def wakeUp(self, playerId, numberOfPlayers, gameConfiguration ):
-        self._model= GameEngine()
+    def wakeUp(self, playerId, numberOfPlayers, gameConfiguration):
+        """Initialise le bot avec la configuration du jeu."""
+        self._model = GameEngine()
         self._model.fromPod(gameConfiguration)
-        self._id= playerId
-        self._model.render()
-        #print( f"Output image : ./shot-moveIt.png" ) 
+        self._id = playerId
         self.initGame()
 
+
     def initGame(self):
+        """Initialise les paramètres internes du bot."""
         self._distances = {}
         self._numberOfMobiles = self._model.numberOfMobiles()
         map_size = self._model.map().size()
+
+        # Calcul des distances pour chaque case du plateau
         for tile in range(1, map_size + 1):
             self._distances[tile] = self.computeDistances(tile)
+
         self._sumResult = 0
         self._countResult = 0
         self.paths = {}
         self._free_missions = self._model.freeMissions()
+        
+        # Attribution des missions aux robots
         self._missions = {robot_id: 0 for robot_id in range(1, self._numberOfMobiles + 1)}
         self._start_positions = {i: self._model.mobilePosition(self._id, i) for i in range(1, self._numberOfMobiles + 1)}
+        
         self.assignOptimalMissions()
 
 
+
     def assignOptimalMissions(self):
+        """Attribue les missions aux robots en fonction de la distance minimale."""
         bot_positions = {bot_id: self._model.mobilePosition(self._id, bot_id) for bot_id in range(1, self._numberOfMobiles + 1)}
         remaining_missions = list(self._free_missions)
         bot_mission_distances = {bot_id: [] for bot_id in bot_positions}
@@ -770,13 +803,17 @@ class SoloBot():
 
         min_mission_id = None
         best_score = float('-inf')
+
+        # Parcourt toutes les missions disponibles
         for mission_id in self._free_missions:
             mission_obj = self._model.mission(mission_id)
             start, final, reward = mission_obj.start, mission_obj.final, mission_obj.reward
+
+            # Calcule la distance totale entre le robot et l'objectif final de la mission
             total_distance = self._distances[current_tile][start] + self._distances[start][final]
 
             if total_distance > 0:
-                score = reward / total_distance
+                score = reward / total_distance # Optimisation en fonction du rapport gain/distance
                 if score > best_score:
                     best_score = score
                     min_mission_id = mission_id
@@ -784,30 +821,32 @@ class SoloBot():
         return min_mission_id
     
     def setMissions(self, robot_id):
+        """Assigne une mission au robot s'il en existe une disponible."""
         if not self._free_missions:
             return
+        
         mission_id = self.minDistanceToMission(self._id, robot_id)
         if mission_id in self._free_missions:
             self._missions[robot_id]= mission_id
 
     def perceive(self, state ):
+        """Met à jour l'état du jeu et réattribue les missions si nécessaire."""
         self._model.setOnState(state)
-        self._model.render()
         self.assignOptimalMissions()
         self._free_missions = self._model.freeMissions()
-        """print(self.paths)
-        print(self._missions)"""
 
     def decideBot(self, idBot):
+        """Détermine l'action du robot en fonction de sa mission et de sa position."""
         current_tile = self._model.mobilePosition(self._id, idBot)
         current_mission = self._model.mobile(self._id, idBot).mission()
-        msg= f'tic-{ self._model.tic() } | score { self._model.score(self._id) }'
-        msg+= f' | postion {current_tile}'
-        #print( msg )
+
+        # Supprime le chemin enregistré s'il existe
         if idBot in self.paths:
             self.paths.pop(idBot)
 
         target_tile = None
+
+        # Si le robot a déjà une mission en cours
         if current_mission != 0:
             mission_obj = self._model.mission(current_mission)
             target_tile = mission_obj.final
@@ -815,6 +854,7 @@ class SoloBot():
                 self._missions[idBot] = 0
                 return f"mission {idBot} {current_mission}"       
         else:
+            # Vérifie si une mission est déjà assignée au robot
             missions_bot = self._missions[idBot]
             if missions_bot != 0:
                 mission_obj = self._model.mission(missions_bot)
@@ -822,6 +862,7 @@ class SoloBot():
                 if current_tile == target_tile:
                     return f"mission {idBot} {missions_bot}"
             else:
+                # Assigne une nouvelle mission si nécessaire
                 self.setMissions(idBot)
                 if not self._missions[idBot]:
                     neighbour = self._model.map().neighbours(current_tile)
@@ -836,48 +877,65 @@ class SoloBot():
                             continue
                         return "pass"
                     return "pass"
+                
         if target_tile is None:
             return "pass"
+        
+        # Calcule le chemin sécurisé vers l'objectif
         new_paths = self.computeSafePath(idBot, current_tile, target_tile, self.paths)
         if idBot in new_paths:
             self.paths[idBot] = new_paths[idBot]
             moves, path = new_paths[idBot]
             if moves:
                 return f"move {idBot} {moves[0]}"
+            
         return "pass"
 
 
     def decide(self):
+        """Détermine et retourne les actions de tous les robots pour ce tour."""
         nbr_mobile = self._model.numberOfMobiles(self._id)
         mission = ""
         move = ""
+
+        # Stocke la position actuelle de chaque robot
         self.robot_positions = {str(i): self._model.mobilePosition(self._id, i) for i in range(1, nbr_mobile + 1)}
+        
+        # Trie les robots par priorité de déplacement
         bots_sorted = self.sortedBotsByPriority()
+
         for robot_id in bots_sorted:
+            # Récupère les positions des autres robots
             self.other_robot_position = [valeur for cle, valeur in self.robot_positions.items() if cle !=robot_id]
             decision = self.decideBot(robot_id)
+
+            # Sépare les actions "mission" et "move
             if "mission" in decision:
                 decision_result = decision.split("mission")[1]
                 mission += decision_result
             if "move" in decision:
                 decision_result = decision.split("move")[1]
                 move += decision_result
+
         return f"mission{mission} move{move}"
 
 
     def sleep(self, result):
-        #print(f"end on : {result}")
+        """Met à jour les résultats du bot à la fin de la partie."""
         self.final_score = result
         self._sumResult += result
         self._countResult += 1
 
 
     def computeDistances(self, iTile):
+        """Calcule la distance minimale entre une case donnée et toutes les autres cases de la carte."""
         size = self._model.map().size()
         dists = [0] * (size + 1)
         dists[iTile] = 0
         ringNodes = self._model.map().neighbours(iTile)
         ringDistance = 1
+
+        # Parcours en largeur pour calculer les distances depuis iTile
         while ringNodes:
             nextNodes = []
             for node in ringNodes:
@@ -895,26 +953,38 @@ class SoloBot():
     
 
     def path(self, iTile, iTarget, max_paths=3):
+        """Trouve jusqu'à max_paths chemins entre une case de départ et une case cible."""
         all_paths = []
         queue = [(iTile, [], [iTile])]
+
         while queue and len(all_paths) < max_paths:
             current, moves, path = queue.pop(0)
+
+            # Si la cible est atteinte, ajoute le chemin trouvé
             if current == iTarget:
                 all_paths.append((moves, path[1:]))
                 continue
+
+            # Récupère les directions possibles depuis la position actuell
             clockdirs = self._model.map().clockBearing(current)
             nextTiles = self._model.map().neighbours(current)
+
+            # Trie les voisins par distance croissante vers la cible
             moves_and_tiles = sorted(zip(clockdirs, nextTiles),
                                 key=lambda x: self._distances[x[1]][iTarget])
+            
+            # Explore les directions disponibles
             for clock, next_tile in moves_and_tiles:
                 if next_tile not in path:
                     new_moves = moves + [clock]
                     new_path = path + [next_tile]
                     queue.append((next_tile, new_moves, new_path))
+
         return all_paths
     
 
     def detectCollision(self, path1, path2):
+        """Détecte une collision entre deux chemins en vérifiant les positions aux mêmes instants."""
         if len(path1) == 1 and len(path2)<1 and path1[0]==path2[1]:
             return True
         
@@ -936,6 +1006,7 @@ class SoloBot():
 
 
     def computeSafePath(self, idBot, iTile, iTarget, paths):
+        """Calcule un chemin sûr pour un robot en évitant les collisions avec d'autres robots."""
 
         candidate_paths = self.path(iTile, iTarget, max_paths=50)
         valid_paths = []
@@ -943,55 +1014,79 @@ class SoloBot():
         for moves, pathbot in candidate_paths:
             if not pathbot:
                 continue
+
             next_position = pathbot[0]
             position_occupied = False
+
+            # Vérifie si la première position du chemin est occupée par un autre robot
             for robot_id, pos in self.robot_positions.items():
                 if robot_id != str(idBot) and next_position == pos:
                     position_occupied = True
                     break
+
             if position_occupied:
                 continue
+
             has_collision = False
+            # Vérifie les collisions avec les chemins existants
             for bot_id, existing_data in paths.items():
                 if bot_id != idBot:
                     _, existing_path = existing_data
                     if self.detectCollision(pathbot, existing_path):
                         has_collision = True
                         break
+
             if not has_collision:
                 valid_paths.append((moves, pathbot))
+        
+        # Sélectionne le chemin le plus court parmi ceux valides
         if valid_paths:
             shortest = min(valid_paths, key=lambda x: len(x[1]))
             paths[idBot] = shortest
             return paths
+        
         return paths
 
     def availableMovesCount(self, robot_id):
+        """Retourne le nombre de déplacements disponibles pour un robot en évitant les collisions."""
+        
         current_tile = self._model.mobilePosition(self._id, robot_id)
         neighbors = self._model.map().neighbours(current_tile)
         available = []
+        
         for n in neighbors:
+            # Vérifie si la case est occupée par un autre robot
             if any(pos == n for rid, pos in self.robot_positions.items() if str(rid) != str(robot_id)):
                 continue
+
             reserved = False
+            # Vérifie si la case est déjà réservée par un autre robot
             for other_id, data in self.paths.items():
                 if str(other_id) != str(robot_id):
                     moves, path = data
                     if path and path[0] == n:
                         reserved = True
                         break
-            if reserved:
-                continue
-            available.append(n)
+
+            if not reserved:
+                available.append(n)
+            
         return len(available)
     
     def sortedBotsByPriority(self):
+        """Trie les robots en fonction du nombre de déplacements disponibles, en priorité ceux avec moins d'options."""
         nbr_mobile = self._model.numberOfMobiles(self._id)
         self.robot_positions = {str(i): self._model.mobilePosition(self._id, i) 
                                 for i in range(1, nbr_mobile + 1)}
+        
         bots = []
+
+        # Calcule le nombre de mouvements possibles pour chaque robot
         for i in range(1, nbr_mobile + 1):
             mobility = self.availableMovesCount(i)
             bots.append((i, mobility))
+
+        # Trie les robots : ceux ayant le moins d'options de déplacement sont prioritaires
         bots.sort(key=lambda x: x[1])
+
         return [bot_id for bot_id, _ in bots]

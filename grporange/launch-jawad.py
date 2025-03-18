@@ -4,7 +4,7 @@ import json
 
 from models import SemiCompleteBot, TspBot, CompleteBot, MultiBot
 
-map = "large-1.json"
+map = "large-2.json"
 matrix = None
 with open(f"./configs/{map}") as file:
     config= json.load(file)
@@ -13,13 +13,13 @@ with open(f"./configs/{map}") as file:
 
 gameEngine= moveit.GameEngine(
     matrix= matrix,
-    numberOfPlayers=1, numberOfRobots=3, tic=100,
+    numberOfPlayers=1, numberOfRobots=6, tic=100,
     missions= [(1, 32), (16, 24), (6, 7)],
-    numberOfPVips=1
+    numberOfPVips=0
 )
 player= CompleteBot(debug=True)
-player2= MultiBot()
+player2= CompleteBot(debug=False)
 gameMaster= moveit.GameMaster(gameEngine, randomMission=10)
-gameMaster.launch([player], gameEngine.numberOfPlayers())
+gameMaster.launch([player], 10)
 
 print("Terminé")

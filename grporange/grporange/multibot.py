@@ -1,6 +1,6 @@
 from hacka.games.moveit import GameEngine
 import random
-
+    
 class MultiBot():
     # Player interface :
     def wakeUp(self, playerId, numberOfPlayers, gameConfiguration):

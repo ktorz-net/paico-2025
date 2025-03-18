@@ -1,4 +1,4 @@
 from . import bot
 
 def bots(): 
-    return [ bot.Bot() ]
+    return [ bot.Bot(), bot.Bot() ]

@@ -173,7 +173,7 @@ class TspBot():
         n = 0
         while current_time - start_time < duration:
             # Si on a trois fois le même score == la solution converge donc on sort de la boucle
-            if n >= 10000:
+            if n >= 1000:
                 break
             result_path, current_score = self.swap(best_score, copy.deepcopy(best_result))
             # Si on a un meilleur score on reset le compteur de convergence

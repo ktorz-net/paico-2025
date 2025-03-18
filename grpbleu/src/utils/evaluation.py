@@ -1,15 +1,13 @@
 from hacka.games.py421 import GameSolo
 
-
 class Evaluation:
     @classmethod
     def evaluate_all_missions(cls, game, missions, robot):
-
-        """Evaluate and select best mission"""
+        """Evaluate and select the best mission"""
         best_mission = []
         scores = []
 
-        # Évalue chaque mission disponible pour trouver la meilleure
+        # Evaluate each available mission to find the best one
         for mission in missions:
             scores.append(Evaluation.evaluate_mission(game, mission, robot))
 
@@ -22,8 +20,7 @@ class Evaluation:
 
     @classmethod
     def evaluate_mission(cls, game, mission, robot):
-        """Évalue l'intérêt d'une mission avec gestion optionnelle du VIP"""
-
+        """Evaluate the interest of a mission with optional VIP management"""
         start_dist = game.getDistance(robot.getPosition(), mission.getStart())
         completion_dist = game.getDistance(mission.getStart(), mission.getFinal())
         total_dist = start_dist + completion_dist
@@ -44,19 +41,19 @@ class Evaluation:
         defeated_vip_coefficient = 1.0
 
         vip_pos = game.getVIP().getVipPosition()
-        # Mode avec VIP
+        # Mode with VIP
         if vip_pos is not None:
             try:
                 _, _, safety_coefficient = game.getVIP().avoid_vip(game, robot.getPosition(), mission.start)
-                # Bonus si on peut battre le VIP
+                # Bonus if VIP can be defeated
                 vip_dist_start = game.getDistance(vip_pos, mission.start)
                 if vip_dist_start > start_dist:
                     defeated_vip_coefficient = 1.2
             except IndexError:
-                print("Erreur lors du calcul des distances avec le VIP")
+                print("Error calculating distances with VIP")
 
             return safety_coefficient, defeated_vip_coefficient
-        # Mode sans VIP: bonus pour missions proches
+        # Mode without VIP: bonus for nearby missions
         else:
             if start_dist < 5:
                 safety_coefficient = 1.5
@@ -64,17 +61,17 @@ class Evaluation:
 
     @classmethod
     def evaluate_oponent_coefficient(cls, game, robot):
-        oponent_coefficient = 1.0
+        opponent_coefficient = 1.0
         if len(game.getPlayers()) > 1:
-            oponent_id = robot.getPlayerId() % 2 + 1
-            for oponent_robot in game.getPlayer(oponent_id).getRobots():
-                distance = game.getDistance(robot.getPosition(), oponent_robot.getPosition())
-                if distance == 1:  # Menace proche
-                    oponent_coefficient -= 0.4
-                elif distance == 2:  # Menace modérée
-                    oponent_coefficient -= 0.2
+            opponent_id = robot.getPlayerId() % 2 + 1
+            for opponent_robot in game.getPlayer(opponent_id).getRobots():
+                distance = game.getDistance(robot.getPosition(), opponent_robot.getPosition())
+                if distance == 1:  # Close threat
+                    opponent_coefficient -= 0.4
+                elif distance == 2:  # Moderate threat
+                    opponent_coefficient -= 0.2
 
-        return oponent_coefficient
+        return opponent_coefficient
 
     @classmethod
     def evaluate_team_coefficient(cls, game, robot):
@@ -82,17 +79,16 @@ class Evaluation:
         for team_robot in game.getPlayer(robot.getPlayerId()).getRobots():
             if team_robot.getId() != robot.getId():
                 distance = game.getDistance(robot.getPosition(), team_robot.getPosition())
-                if distance == 1:  # Menace proche
+                if distance == 1:  # Close threat
                     team_coefficient -= 0.4
-                elif distance == 2:  # Menace modérée
+                elif distance == 2:  # Moderate threat
                     team_coefficient -= 0.2
 
         return team_coefficient
 
-
     @classmethod
     def reevaluate_mission(cls, game, robot_index, robot_pos, current_mission):
-        """Réévalue la mission actuelle et décide de la changer si nécessaire"""
+        """Reevaluate the current mission and decide to change it if necessary"""
         available_missions = game.getModel().freeMissions()
         available_missions.append(current_mission)
         best_mission = Evaluation.evaluate_all_missions(available_missions, robot_pos, game.getVIP().get_vip_position())
@@ -103,7 +99,7 @@ class Evaluation:
 
     @classmethod
     def evaluate_path_safety(cls, game, path):
-        """Évalue la sécurité d'un chemin"""
+        """Evaluate the safety of a path"""
         if not path or not isinstance(path, list):
             return 0
 
@@ -124,7 +120,7 @@ class Evaluation:
         safety_score = 1.0
         map_size = game.getModel().map().size()
 
-        # Pénalité pour proximité avec autres robots
+        # Penalty for proximity to other robots
         for pos in path:
             if not isinstance(pos, int) or pos >= map_size:
                 continue
@@ -141,7 +137,7 @@ class Evaluation:
                 except IndexError:
                     continue
 
-        # Pénalité pour proximité avec VIP
+        # Penalty for proximity to VIP
         if vip_pos is not None and vip_pos < map_size:
             for pos in path:
                 if not isinstance(pos, int) or pos >= map_size:

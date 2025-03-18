@@ -9,13 +9,16 @@ from ..path.path import Path
 class Game:
     def __init__(self):
         self._model = GameEngine()
-        self.missionManager = MissionManager()
+        # _mission_manager: assigns mission to robots
+        self._mission_manager = MissionManager()
+        # _players: List of players having robots
         self._players = []
         self._vip = VIP()
-
+        # _distances: 2D array containing the cost (in number of cells) for all possible distances from point A to point B
         self._distances = None
         self._visited_tiles = set()
 
+    # TODO: commentaire Elouan
     def buildModel(self, matrix, numberOfPlayers, numberOfRobots,numberOfVips,tic,missions):
         self._model= GameEngine(
                 matrix=matrix,
@@ -26,14 +29,27 @@ class Game:
                 missions=missions
             )
 
+    # Model ------------------------------------------------------------------------------------------------------------
     def initModel(self, gameConfiguration):
         self._model.fromPod(gameConfiguration)
 
+    def getModel(self):
+        return self._model
+
+    # Vip --------------------------------------------------------------------------------------------------------------
     def initVIP(self):
         if self._vip.checkVip(self._model):
             self._vip.setVipPosition(self._model.mobilePosition(0, 0))
 
+    def getVIP(self):
+        return self._vip
+
+    # Player -----------------------------------------------------------------------------------------------------------
     def initPlayers(self, numberOfPlayer, playerId):
+        """
+            Initialize the list of players
+            For this game, a maximum of 2 players is allowed
+        """
         player1 = Player(playerId)
         if numberOfPlayer > 1:
             opponentId = playerId % 2 + 1
@@ -47,17 +63,26 @@ class Game:
         else:
             self._players.append(player1)
 
+    def getPlayers(self):
+        return self._players
+
+    def getPlayer(self, id):
+        # id must be 1 or 2 (for the setting of 2 players)
+        return self._players[id - 1]
+
+    # Robots -----------------------------------------------------------------------------------------------------------
     def initRobots(self):
         for player in self._players:
             player.initRobots(self._model)
 
     def initRobotPriority(self, numberOfRobotsInGame):
+        """" Init the priority of each robot depending on the number of robots in game """
         for player in self._players:
             for robot in player.getRobots():
                 robot.initPriority(numberOfRobotsInGame)
 
-
     def getAllRobots(self):
+        """ Retrieve all robots in the game, across all players """
         robots = []
         for player in self._players:
             for robot in player.getRobots():
@@ -65,22 +90,11 @@ class Game:
 
         return robots
 
-    def getModel(self):
-        return self._model
-
+    # Mission Manager --------------------------------------------------------------------------------------------------
     def getMissionManager(self):
-        return self.missionManager
+        return self._mission_manager
 
-    def setModel(self, model):
-        self._model = model
-
-    def getPlayer(self, id):
-        # id must be 1 or 2 (for the setting of 2 players)
-        return self._players[id - 1]
-
-    def getPlayers(self):
-        return self._players
-
+    # Distances --------------------------------------------------------------------------------------------------------
     def getDistances(self):
         return self._distances
 
@@ -88,32 +102,6 @@ class Game:
         if y is None:
             return self._distances[x]
         return self._distances[x][y]
-
-    def setDistances(self, x):
-        # TODO: à voir s'il y a un intéret à implémenter cette méthode
-        pass
-
-    def getVIP(self):
-        return self._vip
-
-    def getVisitedTiles(self):
-        return self._visited_tiles
-
-    def addTile(self, robot_position):
-        self._visited_tiles.add(robot_position)
-    
-    def path(self, iTile, iTarget):
-        """Calcule le chemin optimal entre deux tuiles
-
-        Args:
-            iTile (int): Position de départ
-            iTarget (int): Position cible
-
-        Returns:
-            tuple (list[int], list[int]): Liste des mouvements et chemin
-        """
-        pathClass = Path(iTile, iTarget, self)
-        return pathClass.findDaWay()
 
     def computeDistances(self, iTile):
         """Calcule les distances depuis une tuile donnée vers toutes les autres tuiles.
@@ -174,3 +162,86 @@ class Game:
             self._distances.append(self.computeDistances(i))
 
         # Display.displayDistanceMatrix(self)
+
+    # Visited Tiles ----------------------------------------------------------------------------------------------------
+    def getVisitedTiles(self):
+        return self._visited_tiles
+
+    def addTile(self, robot_position):
+        self._visited_tiles.add(robot_position)
+
+    # Path -------------------------------------------------------------------------------------------------------------
+    def path(self, iTile, iTarget):
+        """Calcule le chemin optimal entre deux tuiles
+
+        Args:
+            iTile (int): Position de départ
+            iTarget (int): Position cible
+
+        Returns:
+            tuple (list[int], list[int]): Liste des mouvements et chemin
+        """
+        pathClass = Path(iTile, iTarget, self)
+        return pathClass.findDaWay()
+
+    # Robot Priorities -------------------------------------------------------------------------------------------------
+    def updateRobotBlockerAndPriorities(self):
+        """
+            Update the priority and the block robots list of each given robot
+            (robots passed as parameters, including robots from the other player)
+        """
+        robots = self.getAllRobots()
+        self.resetRobotPriorities(robots)
+        self.updateBlockRobotsAndCommonCells(robots)
+        self.updatePriorities(robots)
+
+    def updatePriorities(self, robots):
+        """
+            Update the priorities of each robot
+
+            The priority is computed based on the distance to common cells with the blocking robots
+            The robot with the shortest distance to the common cells gets the highest priority
+            After that, for robots with the same priority, the priority is updated based on the score of each robot's selected mission
+        """
+        # Update priorities depending on the shortest distance between the position of the robot and the common cell
+        for robot in robots:
+            block_robots = robot.getBlockRobots()
+            if len(block_robots) > 0:
+                common_cells = robot.getCommonCells()
+                for common_cells_robot, block_robot in zip(common_cells, block_robots):
+                    for common_cell in common_cells_robot:
+                        distance_robot = self._distances[robot.getPosition()][common_cell]
+                        distance_block_robot = self._distances[block_robot.getPosition()][common_cell]
+                        if distance_robot > distance_block_robot:
+                            robot.setPriority(block_robot.getId() - 1, False)
+
+        # Update priorities based on the score of the selected mission for robots with the same priority value.
+        for robot_a in robots:
+            for robot_b in robots:
+                if robot_a.getId() != robot_b.getId():
+                    if robot_a.getSumPriority() == robot_b.getSumPriority():
+                        # TODO: Area for improvement: Consider the remaining number of turns and the number of cells
+                        #  to traverse to reach the mission, as these factors can influence the priority choice.
+                        if robot_a.getScoreSelectedMission() < robot_b.getScoreSelectedMission():
+                            robot_a.setPriority(robot_b.getId() - 1, False)
+
+    def resetRobotPriorities(self, robots):
+        for robot in robots:
+            robot.resetPriority()
+            robot.resetBlockRobots()
+            robot.resetCommonCells()
+
+    def updateBlockRobotsAndCommonCells(self, robots):
+        """ Update/add robots found along the path of another robot """
+        for i in range(len(robots)):
+            for j in range(len(robots)):
+                if i != j:
+                    robot_a = robots[i]
+                    robot_b = robots[j]
+                    path_a = robot_a.getPath()
+                    path_b = robot_b.getPath()
+                    common_cell = set(path_a) & set(path_b)
+                    if common_cell:
+                        robot_a.addBlockRobot(robot_b)
+                        robot_a.addCommonCells(common_cell)
+
