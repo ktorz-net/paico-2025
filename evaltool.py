@@ -115,8 +115,10 @@ class Eval():
             if duration <= maxAveDuration :
                 okChallengers[botName]= (team, index)
         return okChallengers
-
-
+    
+    def testConfront( self, challengers, botName1, botName2, configFile, nbOfGames, maxMedium ):
+        pass
+    
     def launchSoloGame(self, botName, bot1, configFile, nbOfGames= 1, nbOfRobots= None):
         with open( f"configs/{configFile}.json" ) as file:
             config= json.load(file)

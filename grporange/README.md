@@ -147,22 +147,22 @@ Cela dit on trouvait que de cette manière le code était plus lisible pour tous
 Après mise à jour du code, voici les résultats :
 
 ### Small maps with 0 vip
-![Small with 0 vip](/assets/small-0-vip.webp)
+![Small with 0 vip](./assets/small-0-vip.webp)
 
 ### Small maps with 1 vip
-![Small with 1 vip](/assets/small-1-vip.webp)
+![Small with 1 vip](./assets/small-1-vip.webp)
 
 ### Medium maps with 0 vip
-![Medium with 0 vip](/assets/medium-0-vip.webp)
+![Medium with 0 vip](./assets/medium-0-vip.webp)
 
 ### Medium maps with 1 vip
-![Medium with 1 vip](/assets/medium-1-vip.webp)
+![Medium with 1 vip](./assets/medium-1-vip.webp)
 
 ### Large maps with 0 vip
-![Large with 0 vip](/assets/large-0-vip.webp)
+![Large with 0 vip](./assets/large-0-vip.webp)
 
 ### Large maps with 1 vip
-![Large with 1 vip](/assets/large-1-vip.webp)
+![Large with 1 vip](./assets/large-1-vip.webp)
 
 ## Chalendgers
 

@@ -2,7 +2,7 @@
 import json, matplotlib.pyplot as plt
 
 # Parramétre de l'expérience
-configs= [ ("medium-2", 0 ), ("large-4", 0), ("large-4", 1) ]
+configs= [ ("medium-2", 0 ), ("medium-2", 1 ), ("large-4", 0), ("large-4", 1) ]
 
 teams= ["red", "orange", "bleu", "vert" ]
 colors= ["red", "orange", "blue", "green" ]

@@ -113,3 +113,6 @@ def testLarge( name, evaltool, challengers ):
     assert len( challengers ) == nbOfBots
 
     return challengers
+
+def testDuoMedium( evaltool, challengers, botName1, botName2 ):
+    evaltool.testConfront( challengers, botName1, botName2, "medium-1", 3, maxMedium )
