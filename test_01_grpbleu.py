@@ -5,7 +5,7 @@ from grpbleu.src.bot import Bot
 #from grpbleu.src.team import bots
 
 name= "bleu"
-evaltool= evaltool.Eval( f"{name}-test", 10 )
+evaltool= evaltool.Eval( name, 10, "test-solo" )
 challengers= {}
 
 def bots():

@@ -1,15 +1,20 @@
 import evaltool, localtests
 
-from grpred.team import bots
+from grporange.grporange.team import bots
 
-name= 'red'
+name= 'orange'
 evaltool= evaltool.Eval( name, 10, "test-miror" )
-challengers= { f"{name}-0": (bots, 0) }
+challengers= { f"{name}-1": (bots, 1), f"{name}-3": (bots, 3) }
 
-def test_solo_bot_0():
+def test_solo_bot_1():
     global name, evaltool, challengers
     print( challengers )
-    challengers= localtests.testBot(name, evaltool, challengers, 0)
+    challengers= localtests.testBot(name, evaltool, challengers, 1)
+
+def test_solo_bot_3():
+    global name, evaltool, challengers
+    print( challengers )
+    challengers= localtests.testBot(name, evaltool, challengers, 3)
 
 def test_duo_medium_1robot():
     global name, evaltool, challengers

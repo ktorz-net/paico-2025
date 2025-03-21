@@ -44,9 +44,9 @@ def mergeGames( games, bot, config, dur, results ):
     return games
 
 class Eval():
-    def __init__(self, name, nbOfXps):
-        self._name= name
-        self._report= f"log-eval-{self._name}.md"
+    def __init__(self, teamName, nbOfXps, evalTag='test'):
+        self._name= teamName
+        self._report= f"auto-{evalTag}-{self._name}.md"
         self._solo= f"log-solo-{self._name}.log"
         self._nbOfXps= nbOfXps
         self._vip= 0
@@ -75,6 +75,16 @@ class Eval():
         line+= ', '.join( [str(r) for r in results] )
         logDsc= open( self._solo, "a" )
         logDsc.write( line+"\n" )
+        logDsc.close()
+    
+    def logDuoResults(self, botName1, botName2, config, results, duration ):
+        line1= f"{botName1}, {botName2}, {config['name']}, {config['numberOfRobots']}, {self._vip}, {duration}, "
+        line1+= ', '.join( [str(r) for r in results[0]] )
+        line2= f"{botName2}, {botName1}, {config['name']}, {config['numberOfRobots']}, {self._vip}, {duration}, "
+        line2+= ', '.join( [str(r) for r in results[1]] )
+        logDsc= open( "log-duo-games.log", "a" )
+        logDsc.write( line1+"\n" )
+        logDsc.write( line2+"\n" )
         logDsc.close()
     
     def mergeLogs(self, color):
@@ -115,9 +125,6 @@ class Eval():
             if duration <= maxAveDuration :
                 okChallengers[botName]= (team, index)
         return okChallengers
-    
-    def testConfront( self, challengers, botName1, botName2, configFile, nbOfGames, maxMedium ):
-        pass
     
     def launchSoloGame(self, botName, bot1, configFile, nbOfGames= 1, nbOfRobots= None):
         with open( f"configs/{configFile}.json" ) as file:
@@ -160,3 +167,47 @@ class Eval():
                     nbBots
                 )
                 botResults[botName].append( round( sum(results)/self._nbOfXps, 3 ) )
+
+    # Multiplayer: 
+    def testConfront( self, challengers, botName1, botName2, configName, nbOfGames, maxDuration ):
+        self.report( f"\n\n{configName} | nb | min | average | max | t \n-----------|-----|-----|-----|-----|--\n" )
+        
+        team1, index1= challengers[botName1]
+        team2, index2= challengers[botName2]
+        results, duration= self.launchDuoGame(
+            botName1, team1()[index1],
+            botName2, team2()[index2],
+            configName, nbOfGames
+        )
+
+        self.reportResults( botName1, results[0], duration )
+        self.reportResults( botName2, results[1], duration )
+        assert duration < (maxDuration*2)
+        return sum(results[0])
+    
+    def launchDuoGame(self, botName1, bot1, botName2, bot2, configFile, nbOfGames= 1, nbOfRobots= None):
+        with open( f"configs/{configFile}.json" ) as file:
+            config= json.load(file)
+        config['name']= configFile
+        if nbOfRobots != None :
+            config['numberOfRobots']= nbOfRobots
+        
+        # Configure the game:
+        gameEngine= moveit.GameEngine(
+            matrix= config['matrix'],
+            tic= config['tic'],
+            numberOfPlayers= 2,
+            numberOfRobots= config['numberOfRobots'],
+            numberOfPVips= self._vip
+        )
+        # Then Go...
+        gameMaster= moveit.GameMaster(
+            gameEngine,
+            randomMission= config['numberOfMissions'],
+            vipZones= config['vipZones']
+        )
+        tStart= time.perf_counter()
+        results= gameMaster.launch( [bot1, bot2], nbOfGames)
+        tEnd= time.perf_counter()
+        self.logDuoResults( botName1, botName2, config, results, round( (tEnd-tStart), 3 ) )
+        return results, round( (tEnd-tStart), 3 )

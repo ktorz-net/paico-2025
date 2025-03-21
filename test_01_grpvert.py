@@ -6,7 +6,7 @@ from grpred.bot import GhostBot
 
 
 name= "vert"
-evaltool= evaltool.Eval( f"{name}-test", 10 )
+evaltool= evaltool.Eval( name, 10, "test-solo" )
 challengers= {}
 
 

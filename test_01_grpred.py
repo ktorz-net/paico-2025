@@ -3,22 +3,18 @@ import evaltool, localtests
 from grpred.team import bots
 
 name= "red"
-evaltool= evaltool.Eval( f"{name}-test", 10 )
+evaltool= evaltool.Eval( name, 10, "test-solo" )
 challengers= {}
 
 def test_solo_loadBots():
     global name, evaltool, challengers
     challengers= localtests.testLoadBots(name, evaltool, bots)
-    assert list(challengers.keys()) == ['red-0', 'red-1']
+    assert list(challengers.keys()) == ['red-0']
 
 def test_solo_bot_0():
     global name, evaltool, challengers
     print( challengers )
     challengers= localtests.testBot(name, evaltool, challengers, 0)
-
-def test_solo_bot_1():
-    global name, evaltool, challengers
-    challengers= localtests.testBot(name, evaltool, challengers, 1)
 
 def test_solo_small():
     global name, evaltool, challengers

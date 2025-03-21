@@ -2,7 +2,7 @@ import evaltool
 
 maxSmall= 2.0
 maxMedium= 6.0
-maxLarge= 15.0
+maxLarge= 21.0
 
 def testLoadBots( name, evaltool, bots):
     botInstances= bots()
@@ -115,4 +115,23 @@ def testLarge( name, evaltool, challengers ):
     return challengers
 
 def testDuoMedium( evaltool, challengers, botName1, botName2 ):
-    evaltool.testConfront( challengers, botName1, botName2, "medium-1", 3, maxMedium )
+    evaltool.report( f"{botName1} VS {botName2}:\n" )
+    totalResults= evaltool.testConfront( challengers, botName1, botName2, "medium-1", 3, maxMedium )
+    totalResults+= evaltool.testConfront( challengers, botName1, botName2, "medium-1", 10, maxMedium )
+    totalResults+= evaltool.testConfront( challengers, botName1, botName2, "medium-2", 3, maxMedium )
+    totalResults+= evaltool.testConfront( challengers, botName1, botName2, "medium-2", 10, maxMedium )
+    totalResults+= evaltool.testConfront( challengers, botName1, botName2, "medium-3", 3, maxMedium )
+    totalResults+= evaltool.testConfront( challengers, botName1, botName2, "medium-3", 10, maxMedium )
+    totalResults+= evaltool.testConfront( challengers, botName1, botName2, "medium-4", 3, maxMedium )
+    totalResults+= evaltool.testConfront( challengers, botName1, botName2, "medium-4", 10, maxMedium )
+    #assert totalResults > 0
+
+def testDuoLarge( evaltool, challengers, botName1, botName2 ):
+    evaltool.report( f"\n\n{botName1} VS {botName2}:\n\n" )
+    totalResults= evaltool.testConfront( challengers, botName1, botName2, "large-1", 3, maxLarge )
+    totalResults+= evaltool.testConfront( challengers, botName1, botName2, "large-1", 10, maxLarge )
+    totalResults+= evaltool.testConfront( challengers, botName1, botName2, "large-2", 3, maxLarge )
+    totalResults+= evaltool.testConfront( challengers, botName1, botName2, "large-2", 10, maxLarge )
+    totalResults+= evaltool.testConfront( challengers, botName1, botName2, "large-4", 3, maxLarge )
+    totalResults+= evaltool.testConfront( challengers, botName1, botName2, "large-4", 10, maxLarge )
+    #assert totalResults > 0

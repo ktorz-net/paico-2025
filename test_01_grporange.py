@@ -3,7 +3,7 @@ import evaltool, localtests
 from grporange.grporange.team import bots
 
 name= "orange"
-evaltool= evaltool.Eval( f"{name}-test", 10 )
+evaltool= evaltool.Eval( name, 10, "test-solo" )
 challengers= {}
 
 def test_solo_loadBots():

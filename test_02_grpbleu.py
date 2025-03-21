@@ -1,8 +1,8 @@
 import evaltool, localtests
 
-from grpred.team import bots
+from grpbleu.src.team import bots
 
-name= 'red'
+name= 'bleu'
 evaltool= evaltool.Eval( name, 10, "test-miror" )
 challengers= { f"{name}-0": (bots, 0) }
 

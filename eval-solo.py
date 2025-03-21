@@ -11,7 +11,7 @@ import evaltool
 configName= "large-4"
 maxTime= 21.0
 nbOfGames= 100
-vip= 0
+vip= 1
 
 # Build the list of bots.
 eval= evaltool.Eval( f"solo-{configName}", nbOfGames )
