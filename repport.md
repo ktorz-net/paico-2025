@@ -103,7 +103,7 @@ Ni bleu ni vert ne sont capables de monter en multiplayer-multirobot.
 3. C'est à moitié buggé. Ce qui nécessite d'annuler plusieurs des bots. Est-ce que dans un cadre professionnel aussi vous fournissez du code non fonctionnel ?
 
 
-### Orange (13)
+### Orange (12)
 
 Des résultats décevants au vu des promesses des stratégies et du code. 
 
@@ -115,7 +115,7 @@ Un Readme assez complet.
 
 
 
-### Bleu  (11)
+### Bleu  (11.5)
 
 Des résultats décevants au vu des promesses des stratégies et du code. 
 
